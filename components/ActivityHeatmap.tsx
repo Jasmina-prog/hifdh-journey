@@ -56,7 +56,7 @@ export function ActivityHeatmap({ logs }: { logs: DailyLog[] }) {
         data={data}
         blockSize={blockSize}
         blockMargin={blockMargin}
-        fontSize={12}
+        fontSize={15}
         theme={{
           light: ['#f1f5f9', '#bbf7d0', '#4ade80', '#16a34a', '#14532d'],
           dark: ['#1e293b', '#052e16', '#166534', '#16a34a', '#4ade80'],

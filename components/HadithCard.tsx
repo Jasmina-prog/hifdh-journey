@@ -24,6 +24,20 @@ export function HadithCard() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const cacheKey = `verse-of-day-${todayKey}`;
+
+      // Serve cached verse for the day — only fetch once per calendar day
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed: VerseResult = JSON.parse(cached);
+          if (!cancelled) { setVerse(parsed); setLoading(false); }
+          return;
+        }
+      } catch {}
+
+      // Fresh fetch — store result so it stays the same all day
       try {
         const res = await fetch(
           'https://api.quran.com/api/v4/verses/random?language=en&words=false&translations=131&fields=text_uthmani',
@@ -32,11 +46,13 @@ export function HadithCard() {
         if (!res.ok) throw new Error('failed');
         const json = await res.json();
         if (!cancelled && json?.verse) {
-          setVerse({
+          const result: VerseResult = {
             arabic: json.verse.text_uthmani ?? '',
             translation: json.verse.translations?.[0]?.text ?? '',
             verseKey: json.verse.verse_key ?? '',
-          });
+          };
+          setVerse(result);
+          try { localStorage.setItem(cacheKey, JSON.stringify(result)); } catch {}
         }
       } catch {}
       if (!cancelled) setLoading(false);
@@ -69,13 +85,13 @@ export function HadithCard() {
           <p dir="rtl" className="mt-5 font-arabic text-4xl leading-14 text-right text-slate-900 dark:text-slate-100">
             {verse.arabic}
           </p>
-          <p className="mt-4 flex-1 text-base leading-8 italic text-slate-700 dark:text-slate-300">
+          <p className="mt-4 flex-1 text-lg leading-9 italic text-slate-700 dark:text-slate-300">
             &ldquo;{verse.translation}&rdquo;
           </p>
         </>
       ) : (
         <>
-          <p className="mt-5 flex-1 text-base leading-8 text-slate-700 dark:text-slate-300">
+          <p className="mt-5 flex-1 text-lg leading-9 text-slate-700 dark:text-slate-300">
             &ldquo;{dailyHadith.text}&rdquo;
           </p>
           <p className="mt-5 text-xs font-medium text-amber-500 dark:text-amber-600">— {dailyHadith.ref}</p>
@@ -85,7 +101,7 @@ export function HadithCard() {
       {verse && (
         <div className="mt-5 border-t border-amber-100/70 pt-4 dark:border-amber-900/30">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-500 mb-2">Hadith</p>
-          <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">&ldquo;{dailyHadith.text}&rdquo;</p>
+          <p className="text-base leading-7 text-slate-600 dark:text-slate-400">&ldquo;{dailyHadith.text}&rdquo;</p>
           <p className="mt-2 text-[11px] text-amber-400 dark:text-amber-600">— {dailyHadith.ref}</p>
         </div>
       )}

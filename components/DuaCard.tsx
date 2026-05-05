@@ -23,8 +23,8 @@ export function DuaCard() {
       <p dir="rtl" className="mt-5 font-arabic text-4xl leading-14 text-right text-slate-900 dark:text-slate-100">
         {dua.arabic}
       </p>
-      <p className="mt-4 text-sm italic text-slate-500 dark:text-slate-400 leading-relaxed">{dua.transliteration}</p>
-      <p className="mt-4 flex-1 text-base leading-8 text-slate-700 dark:text-slate-300">{dua.translation}</p>
+      <p className="mt-4 text-base italic text-slate-500 dark:text-slate-400 leading-relaxed">{dua.transliteration}</p>
+      <p className="mt-4 flex-1 text-lg leading-9 text-slate-700 dark:text-slate-300">{dua.translation}</p>
       <p className="mt-5 text-xs font-medium text-emerald-600 dark:text-emerald-500">— {dua.source}</p>
     </motion.div>
   );

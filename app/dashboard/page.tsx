@@ -171,15 +171,15 @@ export default function DashboardPage() {
             transition={{ duration: 0.45 }}
           >
             <div className="mb-4 text-center">
-              <p dir="rtl" className="font-arabic text-3xl leading-12 text-emerald-700 dark:text-emerald-400">
-                بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+              <p dir="rtl" className="font-arabic text-3xl leading-[3rem] text-emerald-700 dark:text-emerald-400">
+                السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
               </p>
             </div>
-            <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
+            <p className="text-base font-medium text-slate-400 dark:text-slate-500">
               {t('greeting')}{userName ? `, ${userName}` : ''}
             </p>
             <div className="mt-2 flex flex-wrap items-end gap-4">
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">
+              <h1 className="text-5xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-6xl">
                 {dateString || formatGregorian(today)}
               </h1>
               <Switch

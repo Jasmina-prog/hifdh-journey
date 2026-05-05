@@ -54,11 +54,11 @@ export function ProgressRing({ label, value, subtitle, detail, active, onClick }
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100">{subtitle}</p>
+          <p className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="mt-3 text-xl font-semibold text-slate-900 dark:text-slate-100">{subtitle}</p>
         </div>
       </div>
-      <div className="pointer-events-none mt-5 rounded-3xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+      <div className="pointer-events-none mt-5 rounded-3xl border border-slate-200 bg-slate-100 px-4 py-3 text-base text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
         {detail ?? 'Tap for details'}
       </div>
     </button>

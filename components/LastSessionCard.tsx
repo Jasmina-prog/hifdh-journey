@@ -78,24 +78,24 @@ export function LastSessionCard({ userId }: { userId: string | null }) {
       <p className="text-xs uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">{t('whereILeftOff')}</p>
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-400 animate-pulse">{t('loadingSession')}</p>
+        <p className="mt-4 text-base text-slate-400 animate-pulse">{t('loadingSession')}</p>
       ) : (
         <div className="mt-4 flex flex-1 flex-col gap-3">
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{t('lastSession')}</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('lastSession')}</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
               {info.lastDate ? daysAgo(info.lastDate, t) : t('noSessionsYet')}
             </p>
           </div>
 
           {surahName && (
             <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t('currentlyOn')}</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('currentlyOn')}</p>
+              <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
                 {surahName} ({info.currentSurah})
               </p>
               {juz && (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Juz {juz}</p>
+                <p className="text-base text-slate-500 dark:text-slate-400">Juz {juz}</p>
               )}
             </div>
           )}
