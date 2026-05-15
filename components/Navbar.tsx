@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from './ThemeProvider';
+import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 const navItems = [
   { href: '/', label: 'Home' },
@@ -84,6 +86,25 @@ export function Navbar() {
   const { i18n } = useTranslation('common');
   const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignIn = async () => {
+    setSigningIn(true);
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setSigningIn(false);
+  };
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -126,18 +147,28 @@ export function Navbar() {
 
           <LanguageSwitcher current={i18n.language} onChange={changeLanguage} />
 
-          <Link href="/profile"
-            className={`ml-1 rounded-lg p-2 transition ${
-              isActive('/profile')
-                ? 'text-slate-900 underline decoration-2 underline-offset-4 dark:text-slate-100'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
-            }`}
-            title="Profile"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-              <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
-            </svg>
-          </Link>
+          {user ? (
+            <Link href="/profile"
+              className={`ml-1 rounded-lg p-2 transition ${
+                isActive('/profile')
+                  ? 'text-slate-900 underline decoration-2 underline-offset-4 dark:text-slate-100'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+              }`}
+              title="Profile"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+              </svg>
+            </Link>
+          ) : (
+            <button
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className="ml-1 rounded-lg px-3.5 py-1.5 text-sm font-semibold bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-60"
+            >
+              {signingIn ? 'Redirecting…' : 'Sign in'}
+            </button>
+          )}
         </nav>
 
         {/* ── Mobile right controls ────────────────────────── */}
@@ -150,13 +181,23 @@ export function Navbar() {
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
 
-          <Link href="/profile"
-            className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-              <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
-            </svg>
-          </Link>
+          {user ? (
+            <Link href="/profile"
+              className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+              </svg>
+            </Link>
+          ) : (
+            <button
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-60"
+            >
+              {signingIn ? '…' : 'Sign in'}
+            </button>
+          )}
 
           <button onClick={() => setMobileOpen((v) => !v)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className="rounded-lg p-2 text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
