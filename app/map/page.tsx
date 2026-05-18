@@ -266,7 +266,10 @@ export default function MapPage() {
 
   const weakAlerts = [...progress.entries()]
     .filter(([, p]) => p.status === 'weak' && (!p.last_reviewed || Date.now() - new Date(p.last_reviewed).getTime() > 3 * 86400000))
-    .map(([n]) => n);
+    .map(([n, p]) => ({
+      num: n,
+      days: p.last_reviewed ? Math.round((Date.now() - new Date(p.last_reviewed).getTime()) / 86400000) : null,
+    }));
 
   const isFriday = typeof window !== 'undefined' ? new Date().getDay() === 5 : false;
   const fridaySuggestions = isFriday
@@ -348,14 +351,15 @@ export default function MapPage() {
               className="mb-5 overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20"
             >
               <p className="text-sm font-semibold text-red-700 dark:text-red-400">
-                ⚠ {weakAlerts.length} surah{weakAlerts.length > 1 ? 's' : ''} {t('needsReview').toLowerCase()} — 3+ days
+                ⚠ {weakAlerts.length} surah{weakAlerts.length > 1 ? 's' : ''} {t('needsReview').toLowerCase()}
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {weakAlerts.map((num) => (
+                {weakAlerts.map(({ num, days }) => (
                   <button key={num} onClick={() => setSelectedSurah(num)}
                     className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800 transition hover:bg-red-200 sm:px-3 sm:text-sm dark:bg-red-900/40 dark:text-red-300"
                   >
                     {surahs.find((s) => s.number === num)?.englishName ?? `Surah ${num}`}
+                    {days !== null && <span className="ml-1 opacity-60">· {days}d</span>}
                   </button>
                 ))}
               </div>
@@ -440,7 +444,7 @@ export default function MapPage() {
                 animate={{ opacity: 1, x: 0, y: 0 }}
                 exit={{ opacity: 0, x: 40, y: -6 }}
                 transition={{ duration: 0.26, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="hidden lg:block w-72 xl:w-80 shrink-0"
+                className="hidden lg:block w-72 xl:w-80 shrink-0 sticky top-8 self-start"
               >
                 <SidePanel
                   surah={selectedMeta}

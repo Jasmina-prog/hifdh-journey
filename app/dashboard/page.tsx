@@ -15,8 +15,7 @@ import { WeeklyIntentionCard } from '@/components/WeeklyIntentionCard';
 import { MonthlyTasks } from '@/components/MonthlyTasks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { CalendarView } from '@/components/CalendarView';
-import { StreakCounter } from '@/components/StreakCounter';
-import { getCurrentJuz, getSurahsInJuz } from '@/lib/juzData';
+import { getSurahsInJuz, SURAH_TO_JUZ } from '@/lib/juzData';
 
 type DailyLog = {
   id?: string;
@@ -94,7 +93,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [completedSurahs, setCompletedSurahs] = useState<number[]>([]);
+  const [progressRows, setProgressRows] = useState<{ surah_number: number; status: string; last_reviewed: string | null }[]>([]);
   const [showHijri, setShowHijri] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -127,7 +126,7 @@ export default function DashboardPage() {
           .order('log_date', { ascending: true }),
         supabase
           .from('surah_progress')
-          .select('surah_number')
+          .select('surah_number,status,last_reviewed')
           .eq('user_id', user.id),
       ]);
 
@@ -137,20 +136,24 @@ export default function DashboardPage() {
         );
       }
       if (progressRes.data) {
-        setCompletedSurahs(
-          progressRes.data.map((r: { surah_number: number }) => r.surah_number).sort((a: number, b: number) => a - b)
-        );
+        setProgressRows(progressRes.data as { surah_number: number; status: string; last_reviewed: string | null }[]);
       }
     }
     load();
   }, [todayKey]);
 
   // Ring calculations
-  const ring1 = Math.min(100, Math.round((completedSurahs.length / 114) * 100));
+  const memorizedSurahs = progressRows.filter((r) => r.status === 'memorized').map((r) => r.surah_number);
+  const ring1 = Math.min(100, Math.round((memorizedSurahs.length / 114) * 100));
 
-  const currentJuz = getCurrentJuz(completedSurahs);
+  // Current juz = juz of the most recently reviewed surah (reflects what the user is actively working on)
+  const mostRecent = [...progressRows]
+    .filter((r) => r.last_reviewed)
+    .sort((a, b) => new Date(b.last_reviewed!).getTime() - new Date(a.last_reviewed!).getTime())[0];
+  const currentJuz = mostRecent ? (SURAH_TO_JUZ[mostRecent.surah_number] ?? 1) : 1;
   const juzSurahs = getSurahsInJuz(currentJuz);
-  const juzDone = juzSurahs.filter((s) => completedSurahs.includes(s)).length;
+  const memorizedSet = new Set(memorizedSurahs);
+  const juzDone = juzSurahs.filter((s) => memorizedSet.has(s)).length;
   const ring2 = juzSurahs.length ? Math.round((juzDone / juzSurahs.length) * 100) : 0;
 
   const ring3 = intentionsTotal > 0 ? Math.round((intentionsDone / intentionsTotal) * 100) : 0;
@@ -226,18 +229,6 @@ export default function DashboardPage() {
 
           <Divider />
 
-          {/* ── 3b. Streak counter ────────────────────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.13 }}
-          >
-            <SectionLabel>{t('streakCounter')}</SectionLabel>
-            <StreakCounter logs={logs} />
-          </motion.section>
-
-          <Divider />
-
           {/* ── 4. Progress rings ─────────────────────────────────────────── */}
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -249,8 +240,8 @@ export default function DashboardPage() {
               <ProgressRing
                 label={t('overallQuran')}
                 value={ring1}
-                subtitle={`${completedSurahs.length} ${t('of')} 114 ${t('surahs')}`}
-                detail={`${114 - completedSurahs.length} ${t('surahsRemaining')}`}
+                subtitle={`${memorizedSurahs.length} ${t('of')} 114 ${t('surahs')}`}
+                detail={`${114 - memorizedSurahs.length} ${t('surahsRemaining')}`}
               />
               <ProgressRing
                 label={`${t('currentJuz')} ${currentJuz}`}

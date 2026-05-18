@@ -29,40 +29,31 @@ function daysAgo(dateStr: string, t: (k: string) => string): string {
 }
 
 type SessionInfo = {
-  lastDate: string | null;
-  currentSurah: number | null;
+  surahNumber: number | null;
+  lastReviewed: string | null;
 };
 
 export function LastSessionCard({ userId }: { userId: string | null }) {
   const { t } = useTranslation('common');
-  const [info, setInfo] = useState<SessionInfo>({ lastDate: null, currentSurah: null });
+  const [info, setInfo] = useState<SessionInfo>({ surahNumber: null, lastReviewed: null });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
 
     async function load() {
-      const [logsRes, progressRes] = await Promise.all([
-        supabase
-          .from('daily_logs')
-          .select('log_date')
-          .eq('user_id', userId)
-          .or('sabaq_done.eq.true,sabqi_done.eq.true,manzil_done.eq.true')
-          .order('log_date', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('surah_progress')
-          .select('surah_number, last_reviewed')
-          .eq('user_id', userId)
-          .order('last_reviewed', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      const { data } = await supabase
+        .from('surah_progress')
+        .select('surah_number, last_reviewed')
+        .eq('user_id', userId)
+        .not('last_reviewed', 'is', null)
+        .order('last_reviewed', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       setInfo({
-        lastDate: logsRes.data?.log_date ?? null,
-        currentSurah: progressRes.data?.surah_number ?? null,
+        surahNumber: data?.surah_number ?? null,
+        lastReviewed: data?.last_reviewed ?? null,
       });
       setLoading(false);
     }
@@ -70,8 +61,8 @@ export function LastSessionCard({ userId }: { userId: string | null }) {
     load();
   }, [userId]);
 
-  const surahName = info.currentSurah ? SURAH_NAMES[info.currentSurah - 1] : null;
-  const juz = info.currentSurah ? SURAH_TO_JUZ[info.currentSurah] : null;
+  const surahName = info.surahNumber ? SURAH_NAMES[info.surahNumber - 1] : null;
+  const juz = info.surahNumber ? SURAH_TO_JUZ[info.surahNumber] : null;
 
   return (
     <div className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
@@ -79,30 +70,32 @@ export function LastSessionCard({ userId }: { userId: string | null }) {
 
       {loading ? (
         <p className="mt-4 text-base text-slate-400 animate-pulse">{t('loadingSession')}</p>
+      ) : surahName ? (
+        <div className="mt-4 flex flex-1 flex-col gap-1">
+          <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{surahName}</p>
+          <p className="text-base text-slate-500 dark:text-slate-400">
+            Surah {info.surahNumber} · Juz {juz}
+          </p>
+          {info.lastReviewed && (
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              {daysAgo(info.lastReviewed, t)}
+            </p>
+          )}
+          <div className="mt-auto pt-4">
+            <Link
+              href={`/map?surah=${info.surahNumber}`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
+            >
+              {t('goToMushaMap')}
+            </Link>
+          </div>
+        </div>
       ) : (
         <div className="mt-4 flex flex-1 flex-col gap-3">
-          <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t('lastSession')}</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
-              {info.lastDate ? daysAgo(info.lastDate, t) : t('noSessionsYet')}
-            </p>
-          </div>
-
-          {surahName && (
-            <div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{t('currentlyOn')}</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
-                {surahName} ({info.currentSurah})
-              </p>
-              {juz && (
-                <p className="text-base text-slate-500 dark:text-slate-400">Juz {juz}</p>
-              )}
-            </div>
-          )}
-
+          <p className="text-base text-slate-400">{t('noSessionsYet')}</p>
           <div className="mt-auto">
             <Link
-              href={surahName ? `/map?surah=${info.currentSurah}` : '/map'}
+              href="/map"
               className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
             >
               {t('goToMushaMap')}
