@@ -1,15 +1,12 @@
 'use client';
-
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { IslamicPattern } from '@/components/IslamicPattern';
-import { MonthlyTasks } from '@/components/MonthlyTasks';
-import { WeeklyNiyyah } from '@/components/WeeklyNiyyah';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const SURAH_NAMES: string[] = [
   'Al-Fatihah', 'Al-Baqarah', "Ali 'Imran", "An-Nisa'", "Al-Ma'idah",
@@ -36,9 +33,12 @@ const SURAH_NAMES: string[] = [
   'Al-Ikhlas', 'Al-Falaq', 'An-Nas',
 ];
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+const MILESTONE_EMOJIS = ['✨', '🎉', '🤲', '📖', '🌟', '💫', '🏆', '🌙'];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tag = 'tadabbur' | 'milestone' | 'struggle' | 'breakthrough';
+type ActiveTab = 'entries' | 'vocab' | 'milestones';
 
 type JournalEntry = {
   id: string;
@@ -67,194 +67,130 @@ type Milestone = {
   created_at: string;
 };
 
-// ─── Utility helpers ─────────────────────────────────────────────────────────
+// ─── Tag config ───────────────────────────────────────────────────────────────
+
+const TAG_CONFIG: Record<Tag, {
+  label: string;
+  pill: string;
+  leftBorder: string;
+  activePill: string;
+}> = {
+  tadabbur:    {
+    label: 'Tadabbur',
+    pill: 'border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-500',
+    leftBorder: 'border-l-emerald-400 dark:border-l-emerald-600',
+    activePill: 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300',
+  },
+  milestone: {
+    label: 'Milestone',
+    pill: 'border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:text-slate-500',
+    leftBorder: 'border-l-amber-400 dark:border-l-amber-600',
+    activePill: 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300',
+  },
+  struggle: {
+    label: 'Struggle',
+    pill: 'border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-700 dark:border-slate-700 dark:text-slate-500',
+    leftBorder: 'border-l-rose-400 dark:border-l-rose-600',
+    activePill: 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-600 dark:bg-rose-950/40 dark:text-rose-300',
+  },
+  breakthrough: {
+    label: 'Breakthrough',
+    pill: 'border-slate-200 text-slate-500 hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:text-slate-500',
+    leftBorder: 'border-l-sky-400 dark:border-l-sky-600',
+    activePill: 'border-sky-400 bg-sky-50 text-sky-700 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-300',
+  },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function parseSurahInput(input: string): number | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   const num = parseInt(trimmed, 10);
   if (!isNaN(num) && num >= 1 && num <= 114) return num;
-  const idx = SURAH_NAMES.findIndex(
-    (n) => n.toLowerCase() === trimmed.toLowerCase()
-  );
+  const idx = SURAH_NAMES.findIndex((n) => n.toLowerCase() === trimmed.toLowerCase());
   return idx >= 0 ? idx + 1 : null;
 }
 
-function surahLabel(n: number | null): string {
-  if (!n) return '';
-  return `${SURAH_NAMES[n - 1]}`;
+function surahLabel(n: number): string {
+  return SURAH_NAMES[n - 1] ?? `Surah ${n}`;
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-}
-
-function yearsAgo(iso: string) {
-  const then = new Date(iso).getFullYear();
-  const now = new Date().getFullYear();
-  const diff = now - then;
-  if (diff === 1) return 'One year ago today';
-  return `${diff} years ago today`;
+  const d = new Date(iso);
+  const today = new Date();
+  const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  if (diff < 7) return `${diff} days ago`;
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
 }
 
 function isSameDayPastYear(iso: string): boolean {
   const d = new Date(iso);
   const today = new Date();
-  return (
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate() &&
-    d.getFullYear() < today.getFullYear()
-  );
+  return d.getMonth() === today.getMonth() && d.getDate() === today.getDate() && d.getFullYear() < today.getFullYear();
 }
 
-// ─── Shared UI pieces ────────────────────────────────────────────────────────
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-      {children}
-    </p>
-  );
+function thisWeekCount(entries: JournalEntry[]): number {
+  const cutoff = Date.now() - 7 * 86400000;
+  return entries.filter((e) => new Date(e.created_at).getTime() > cutoff).length;
 }
 
-function Divider() {
-  return (
-    <div className="flex items-center gap-4">
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
-      <span className="text-xs text-slate-300 dark:text-slate-700">✦</span>
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
-    </div>
-  );
-}
+// ─── Entry Card ───────────────────────────────────────────────────────────────
 
-const TAG_STYLES: Record<Tag, string> = {
-  tadabbur:    'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800',
-  milestone:   'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800',
-  struggle:    'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800',
-  breakthrough:'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-400 dark:border-sky-800',
-};
-
-function TagBadge({ tag }: { tag: Tag }) {
-  const labels: Record<Tag, string> = {
-    tadabbur: 'Tadabbur', milestone: 'Milestone',
-    struggle: 'Struggle', breakthrough: 'Breakthrough',
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${TAG_STYLES[tag]}`}>
-      {labels[tag]}
-    </span>
-  );
-}
-
-type CollapsibleProps = {
-  label: string;
-  badge?: string | number;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-};
-
-function Collapsible({ label, badge, defaultOpen = false, children }: CollapsibleProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
-      >
-        <div className="flex items-center gap-2">
-          <SectionLabel>{label}</SectionLabel>
-          {badge !== undefined && (
-            <span className="-mt-3 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-              {badge}
-            </span>
-          )}
-        </div>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.15 }}
-          className="-mt-3 text-slate-400 dark:text-slate-600"
-        >
-          ↓
-        </motion.span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Entry Card ──────────────────────────────────────────────────────────────
-
-function EntryCard({
-  entry,
-  onPin,
-  onDelete,
-}: {
+function EntryCard({ entry, onPin, onDelete }: {
   entry: JournalEntry;
   onPin: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isLong = entry.content.length > 220;
-  const displayContent =
-    isLong && !expanded ? entry.content.slice(0, 220) + '…' : entry.content;
+  const cfg = TAG_CONFIG[entry.tag];
+  const isLong = entry.content.length > 240;
+  const displayContent = isLong && !expanded ? entry.content.slice(0, 240) + '…' : entry.content;
 
   return (
-    <div className="group relative rounded-2xl border border-slate-100 bg-white px-5 py-4 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-      {/* Header row */}
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className={`group relative rounded-xl border border-slate-100 border-l-4 ${cfg.leftBorder} bg-white px-4 py-3.5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80`}>
+      {/* Row 1: meta + date */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {entry.surah_number && (
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               {surahLabel(entry.surah_number)}
-              {entry.ayah_number ? ` · Ayah ${entry.ayah_number}` : ''}
+              {entry.ayah_number ? <span className="font-normal text-slate-500"> · Ayah {entry.ayah_number}</span> : null}
             </span>
           )}
-          <TagBadge tag={entry.tag} />
+          <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${cfg.activePill}`}>
+            {cfg.label}
+          </span>
+          {entry.pinned && (
+            <span className="text-[11px] text-amber-500">📌 Pinned</span>
+          )}
         </div>
-        <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
-          {formatDate(entry.created_at)}
-        </span>
+        <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{formatDate(entry.created_at)}</span>
       </div>
 
       {/* Content */}
-      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300">
-        {displayContent}
-      </p>
+      <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300">{displayContent}</p>
       {isLong && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-500"
+          className="mt-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
         >
-          {expanded ? 'Show less' : 'Read more'}
+          {expanded ? 'Show less ↑' : 'Read more ↓'}
         </button>
       )}
 
-      {/* Footer actions */}
-      <div className="mt-3 flex items-center justify-between">
+      {/* Actions */}
+      <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2.5 dark:border-slate-800">
         <button
           type="button"
           onClick={() => onPin(entry.id)}
-          title={entry.pinned ? 'Unpin' : 'Pin this entry'}
-          className={`flex items-center gap-1.5 text-xs transition ${
+          className={`flex items-center gap-1 text-xs font-medium transition ${
             entry.pinned
               ? 'text-amber-500 dark:text-amber-400'
-              : 'text-slate-300 hover:text-amber-400 dark:text-slate-700 dark:hover:text-amber-500'
+              : 'text-slate-300 hover:text-amber-500 dark:text-slate-700 dark:hover:text-amber-400'
           }`}
         >
           <svg className="h-3.5 w-3.5" fill={entry.pinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -262,11 +198,10 @@ function EntryCard({
           </svg>
           {entry.pinned ? 'Pinned' : 'Pin'}
         </button>
-
         <button
           type="button"
           onClick={() => onDelete(entry.id)}
-          className="text-xs text-slate-200 opacity-0 transition hover:text-red-400 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-500"
+          className="text-xs text-slate-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-400"
         >
           Delete
         </button>
@@ -275,26 +210,17 @@ function EntryCard({
   );
 }
 
-// ─── Entry Form ──────────────────────────────────────────────────────────────
+// ─── Write Form ───────────────────────────────────────────────────────────────
 
-type EntryFormProps = {
-  onSave: (entry: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) => Promise<void>;
-};
-
-function EntryForm({ onSave }: EntryFormProps) {
+function WriteForm({ onSave }: {
+  onSave: (e: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) => Promise<void>;
+}) {
   const [surahInput, setSurahInput] = useState('');
   const [ayahInput, setAyahInput] = useState('');
   const [content, setContent] = useState('');
   const [tag, setTag] = useState<Tag>('tadabbur');
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const TAGS: { value: Tag; label: string }[] = [
-    { value: 'tadabbur', label: 'Tadabbur' },
-    { value: 'milestone', label: 'Milestone' },
-    { value: 'struggle', label: 'Struggle' },
-    { value: 'breakthrough', label: 'Breakthrough' },
-  ];
 
   async function handleSave() {
     if (!content.trim()) return;
@@ -307,32 +233,27 @@ function EntryForm({ onSave }: EntryFormProps) {
       content: content.trim(),
       tag,
     });
-    setSurahInput('');
-    setAyahInput('');
-    setContent('');
-    setTag('tadabbur');
+    setSurahInput(''); setAyahInput(''); setContent(''); setTag('tadabbur');
     setSaving(false);
     textareaRef.current?.focus();
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <SectionLabel>Write a new entry</SectionLabel>
+    <div className="rounded-2xl border-2 border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+      <p className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">New Entry</p>
 
-      {/* Surah + Ayah row */}
-      <div className="mb-3 flex gap-3">
+      {/* Surah + Ayah */}
+      <div className="mb-3 flex gap-2">
         <div className="flex-1">
           <input
-            list="surah-list"
+            list="surah-datalist"
             value={surahInput}
             onChange={(e) => setSurahInput(e.target.value)}
-            placeholder="Which Surah? (name or number)"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-slate-500"
+            placeholder="Surah (optional — name or number)"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-emerald-600"
           />
-          <datalist id="surah-list">
-            {SURAH_NAMES.map((name, i) => (
-              <option key={i} value={name} />
-            ))}
+          <datalist id="surah-datalist">
+            {SURAH_NAMES.map((name, i) => <option key={i} value={name} />)}
           </datalist>
         </div>
         <input
@@ -341,108 +262,130 @@ function EntryForm({ onSave }: EntryFormProps) {
           value={ayahInput}
           onChange={(e) => setAyahInput(e.target.value)}
           placeholder="Ayah #"
-          className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-slate-500"
+          className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
         />
       </div>
 
-      {/* Content */}
+      {/* Tag selection */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {(Object.keys(TAG_CONFIG) as Tag[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTag(t)}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+              tag === t ? TAG_CONFIG[t].activePill : TAG_CONFIG[t].pill
+            }`}
+          >
+            {TAG_CONFIG[t].label}
+          </button>
+        ))}
+      </div>
+
+      {/* Textarea */}
       <textarea
         ref={textareaRef}
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave();
-        }}
+        onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave(); }}
         rows={4}
-        placeholder="What's on your heart today?"
-        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-slate-500"
+        placeholder="What's on your heart today? A reflection, difficulty, or breakthrough…"
+        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-emerald-600"
       />
 
-      {/* Tag row + save */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {TAGS.map((t) => (
-            <label key={t.value} className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="radio"
-                name="entry-tag"
-                value={t.value}
-                checked={tag === t.value}
-                onChange={() => setTag(t.value)}
-                className="sr-only"
-              />
-              <span
-                className={`rounded-full border px-3 py-0.5 text-xs font-medium transition ${
-                  tag === t.value
-                    ? TAG_STYLES[t.value]
-                    : 'border-slate-200 text-slate-400 hover:border-slate-300 dark:border-slate-700 dark:text-slate-600'
-                }`}
-              >
-                {t.label}
-              </span>
-            </label>
-          ))}
-        </div>
-
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs text-slate-300 dark:text-slate-700">⌘ + Enter to save</span>
         <button
           type="button"
           onClick={handleSave}
           disabled={!content.trim() || saving}
-          className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-300"
+          className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
         >
-          {saving ? 'Saving…' : 'Save quietly'}
+          {saving ? 'Saving…' : 'Save entry →'}
         </button>
       </div>
-
-      <p className="mt-2 text-xs text-slate-300 dark:text-slate-700">
-        ⌘ + Enter to save
-      </p>
     </div>
   );
 }
 
-// ─── Vocab Bank ──────────────────────────────────────────────────────────────
+// ─── Vocab Tab ────────────────────────────────────────────────────────────────
 
-function VocabBank({
-  words,
-  onAdd,
-  onDelete,
-}: {
+function VocabTab({ words, onAdd, onDelete }: {
   words: VocabWord[];
-  onAdd: (w: Omit<VocabWord, 'id' | 'created_at'>) => void;
-  onDelete: (id: string) => void;
+  onAdd: (w: Omit<VocabWord, 'id' | 'created_at'>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [word, setWord] = useState('');
   const [root, setRoot] = useState('');
   const [meaning, setMeaning] = useState('');
   const [foundIn, setFoundIn] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!word.trim() || !meaning.trim()) return;
-    onAdd({ word: word.trim(), root: root.trim(), meaning: meaning.trim(), found_in: foundIn.trim() });
+    setSaving(true);
+    await onAdd({ word: word.trim(), root: root.trim(), meaning: meaning.trim(), found_in: foundIn.trim() });
     setWord(''); setRoot(''); setMeaning(''); setFoundIn('');
+    setSaving(false);
   }
 
   return (
-    <div className="mt-4 space-y-4">
-      {words.length > 0 && (
-        <div className="space-y-2">
+    <div className="space-y-5">
+      {/* Add form */}
+      <div className="rounded-2xl border-2 border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <p className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Add a Word</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            value={word} onChange={(e) => setWord(e.target.value)}
+            placeholder="Arabic word"
+            dir="rtl"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right font-arabic text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+          />
+          <input
+            value={root} onChange={(e) => setRoot(e.target.value)}
+            placeholder="Root letters (e.g. ك ت ب)"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+          />
+          <input
+            value={meaning} onChange={(e) => setMeaning(e.target.value)}
+            placeholder="Meaning *"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+          />
+          <input
+            value={foundIn} onChange={(e) => setFoundIn(e.target.value)}
+            placeholder="Found in (e.g. Al-Baqarah 2:255)"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+          />
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={handleAdd}
+            disabled={!word.trim() || !meaning.trim() || saving}
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
+          >
+            {saving ? 'Saving…' : 'Add word →'}
+          </button>
+        </div>
+      </div>
+
+      {/* Word list */}
+      {words.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">
+          Words you encounter during memorisation will live here.
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
           {words.map((w) => (
-            <div key={w.id} className="group flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <div>
-                <p dir="rtl" className="font-arabic text-xl text-slate-900 dark:text-slate-100">{w.word}</p>
-                {w.root && (
-                  <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Root: {w.root}</p>
-                )}
-                <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{w.meaning}</p>
-                {w.found_in && (
-                  <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-500">Found in: {w.found_in}</p>
-                )}
+            <div key={w.id} className="group flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <div className="min-w-0">
+                <p dir="rtl" className="font-arabic text-2xl leading-tight text-slate-900 dark:text-slate-100">{w.word}</p>
+                {w.root && <p className="mt-0.5 text-xs text-slate-400">Root: {w.root}</p>}
+                <p className="mt-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">{w.meaning}</p>
+                {w.found_in && <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-500">{w.found_in}</p>}
               </div>
               <button
-                type="button"
                 onClick={() => onDelete(w.id)}
-                className="shrink-0 text-xs text-slate-200 opacity-0 transition hover:text-red-400 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-500"
+                className="mt-1 shrink-0 text-xs text-slate-200 opacity-0 transition hover:text-red-400 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-500"
               >
                 ✕
               </button>
@@ -450,142 +393,90 @@ function VocabBank({
           ))}
         </div>
       )}
-
-      {words.length === 0 && (
-        <p className="py-4 text-center text-sm text-slate-300 dark:text-slate-700">
-          Words you encounter during memorisation will live here.
-        </p>
-      )}
-
-      {/* Add form */}
-      <div className="rounded-xl border border-dashed border-slate-200 p-4 dark:border-slate-800">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
-            placeholder="Arabic word"
-            dir="rtl"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-arabic text-slate-900 outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
-          />
-          <input
-            value={root}
-            onChange={(e) => setRoot(e.target.value)}
-            placeholder="Root letters (optional)"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
-          />
-          <input
-            value={meaning}
-            onChange={(e) => setMeaning(e.target.value)}
-            placeholder="Meaning"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
-          />
-          <input
-            value={foundIn}
-            onChange={(e) => setFoundIn(e.target.value)}
-            placeholder="Found in (e.g. Al-Baqarah 2:219)"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
-          />
-        </div>
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={!word.trim() || !meaning.trim()}
-            className="rounded-lg bg-slate-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-300"
-          >
-            Add word
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
 
-// ─── Milestone Log ───────────────────────────────────────────────────────────
+// ─── Milestones Tab ───────────────────────────────────────────────────────────
 
-const MILESTONE_EMOJIS = ['🎉', '✨', '🤲', '📖', '🌟', '💫', '🏆', '🌙'];
-
-function MilestoneLog({
-  milestones,
-  onAdd,
-  onDelete,
-}: {
+function MilestonesTab({ milestones, onAdd, onDelete }: {
   milestones: Milestone[];
-  onAdd: (text: string, emoji: string) => void;
-  onDelete: (id: string) => void;
+  onAdd: (text: string, emoji: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [text, setText] = useState('');
   const [emoji, setEmoji] = useState('✨');
+  const [saving, setSaving] = useState(false);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!text.trim()) return;
-    onAdd(text.trim(), emoji);
+    setSaving(true);
+    await onAdd(text.trim(), emoji);
     setText('');
+    setSaving(false);
   }
 
   return (
-    <div className="mt-4 space-y-4">
-      {milestones.length > 0 && (
-        <ul className="space-y-2">
-          {milestones.map((m) => (
-            <li key={m.id} className="group flex items-start gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-              <span className="text-lg leading-none">{m.emoji}</span>
-              <div className="flex-1">
-                <p className="text-sm text-slate-800 dark:text-slate-200">{m.text}</p>
-                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-                  {formatDate(m.created_at)}
-                  {m.type === 'auto' && (
-                    <span className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-slate-800">auto</span>
-                  )}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onDelete(m.id)}
-                className="shrink-0 text-xs text-slate-200 opacity-0 transition hover:text-red-400 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-500"
-              >
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {milestones.length === 0 && (
-        <p className="py-4 text-center text-sm text-slate-300 dark:text-slate-700">
-          Your milestones — big and small — will live here.
-        </p>
-      )}
-
+    <div className="space-y-5">
       {/* Add form */}
-      <div className="flex gap-2">
-        <div className="relative">
+      <div className="rounded-2xl border-2 border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <p className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Record a Milestone</p>
+        <div className="flex gap-2">
           <select
             value={emoji}
             onChange={(e) => setEmoji(e.target.value)}
-            className="h-full appearance-none rounded-lg border border-slate-200 bg-slate-50 px-2 py-2.5 text-base outline-none dark:border-slate-700 dark:bg-slate-800"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-base outline-none dark:border-slate-700 dark:bg-slate-800"
           >
-            {MILESTONE_EMOJIS.map((e) => (
-              <option key={e} value={e}>{e}</option>
-            ))}
+            {MILESTONE_EMOJIS.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+            placeholder="e.g. Completed Surah Al-Kahf — first full surah!"
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!text.trim() || saving}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
+          >
+            {saving ? '…' : 'Add'}
+          </button>
         </div>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-          placeholder="Record a milestone…"
-          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!text.trim()}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-300"
-        >
-          Add
-        </button>
       </div>
+
+      {/* Timeline */}
+      {milestones.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">
+          Your milestones — big and small — will live here.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {milestones.map((m) => (
+            <div key={m.id} className="group flex items-start gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <span className="mt-0.5 text-xl leading-none">{m.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{m.text}</p>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    {new Date(m.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  {m.type === 'auto' && (
+                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">auto</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => onDelete(m.id)}
+                className="mt-1 shrink-0 text-xs text-slate-200 opacity-0 transition hover:text-red-400 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-500"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -594,413 +485,310 @@ function MilestoneLog({
 
 export default function JournalPage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('entries');
 
-  // Entries state
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [vocab, setVocab] = useState<VocabWord[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
 
-  // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<Tag | 'all'>('all');
 
-  // ── Storage helpers ──────────────────────────────────────────────────────
-
-  function entriesKey(uid: string) { return `hifdh-journal-${uid}`; }
-  function vocabKey(uid: string) { return `hifdh-vocab-${uid}`; }
-  function milestonesKey(uid: string) { return `hifdh-milestones-${uid}`; }
-
-  function readLocal<T>(key: string): T[] {
-    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : []; } catch { return []; }
-  }
-  function writeLocal<T>(key: string, data: T[]) {
-    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
-  }
-
-  // ── Load ─────────────────────────────────────────────────────────────────
+  // ── Load from Supabase ──────────────────────────────────────────────────────
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const uid = data?.user?.id ?? null;
       setUserId(uid);
+      if (!uid) { setLoading(false); return; }
 
-      if (!uid) return;
-
-      // Load from localStorage instantly
-      setEntries(readLocal<JournalEntry>(entriesKey(uid)));
-      setVocab(readLocal<VocabWord>(vocabKey(uid)));
-      setMilestones(readLocal<Milestone>(milestonesKey(uid)));
-
-      // Sync from Supabase
       Promise.all([
         supabase.from('journal_entries').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('vocab_words').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('journal_milestones').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
       ]).then(([e, v, m]) => {
-        if (e.data && e.data.length > 0) {
-          setEntries(e.data as JournalEntry[]);
-          writeLocal(entriesKey(uid), e.data);
-        }
-        if (v.data && v.data.length > 0) {
-          setVocab(v.data as VocabWord[]);
-          writeLocal(vocabKey(uid), v.data);
-        }
-        if (m.data && m.data.length > 0) {
-          setMilestones(m.data as Milestone[]);
-          writeLocal(milestonesKey(uid), m.data);
-        }
+        if (e.data) setEntries(e.data as JournalEntry[]);
+        if (v.data) setVocab(v.data as VocabWord[]);
+        if (m.data) setMilestones(m.data as Milestone[]);
+        setLoading(false);
       });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Entry handlers ────────────────────────────────────────────────────────
+  // ── Entry handlers ──────────────────────────────────────────────────────────
 
   async function addEntry(e: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) {
-    const tempId = `local-${Date.now()}`;
-    const newEntry: JournalEntry = {
-      ...e, id: tempId, pinned: false, created_at: new Date().toISOString(),
-    };
-    const updated = [newEntry, ...entries];
-    setEntries(updated);
-    if (userId) writeLocal(entriesKey(userId), updated);
+    if (!userId) return;
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: JournalEntry = { ...e, id: tempId, pinned: false, created_at: new Date().toISOString() };
+    setEntries((prev) => [optimistic, ...prev]);
 
-    if (userId) {
-      const { data } = await supabase
-        .from('journal_entries')
-        .insert({ user_id: userId, ...e, pinned: false })
-        .select('*')
-        .single();
-      if (data) {
-        setEntries((prev) => prev.map((x) => (x.id === tempId ? data as JournalEntry : x)));
-        if (userId) writeLocal(entriesKey(userId), entries.map((x) => (x.id === tempId ? data as JournalEntry : x)));
-      }
-    }
+    const { data } = await supabase
+      .from('journal_entries')
+      .insert({ user_id: userId, ...e, pinned: false })
+      .select('*')
+      .single();
+    if (data) setEntries((prev) => prev.map((x) => (x.id === tempId ? data as JournalEntry : x)));
   }
 
   async function togglePin(id: string) {
-    const updated = entries.map((e) => e.id === id ? { ...e, pinned: !e.pinned } : e);
-    setEntries(updated);
-    if (userId) writeLocal(entriesKey(userId), updated);
     const entry = entries.find((e) => e.id === id);
-    if (userId && entry && !id.startsWith('local-')) {
+    if (!entry) return;
+    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, pinned: !e.pinned } : e));
+    if (!id.startsWith('temp-')) {
       await supabase.from('journal_entries').update({ pinned: !entry.pinned }).eq('id', id);
     }
   }
 
   async function deleteEntry(id: string) {
-    const updated = entries.filter((e) => e.id !== id);
-    setEntries(updated);
-    if (userId) writeLocal(entriesKey(userId), updated);
-    if (userId && !id.startsWith('local-')) {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    if (!id.startsWith('temp-')) {
       await supabase.from('journal_entries').delete().eq('id', id);
     }
   }
 
-  // ── Vocab handlers ────────────────────────────────────────────────────────
+  // ── Vocab handlers ──────────────────────────────────────────────────────────
 
   async function addVocab(w: Omit<VocabWord, 'id' | 'created_at'>) {
-    const tempId = `local-${Date.now()}`;
-    const newWord: VocabWord = { ...w, id: tempId, created_at: new Date().toISOString() };
-    const updated = [newWord, ...vocab];
-    setVocab(updated);
-    if (userId) writeLocal(vocabKey(userId), updated);
-
-    if (userId) {
-      const { data } = await supabase
-        .from('vocab_words')
-        .insert({ user_id: userId, ...w })
-        .select('*')
-        .single();
-      if (data) setVocab((prev) => prev.map((x) => (x.id === tempId ? data as VocabWord : x)));
-    }
+    if (!userId) return;
+    const tempId = `temp-${Date.now()}`;
+    setVocab((prev) => [{ ...w, id: tempId, created_at: new Date().toISOString() }, ...prev]);
+    const { data } = await supabase.from('vocab_words').insert({ user_id: userId, ...w }).select('*').single();
+    if (data) setVocab((prev) => prev.map((x) => (x.id === tempId ? data as VocabWord : x)));
   }
 
   async function deleteVocab(id: string) {
-    const updated = vocab.filter((w) => w.id !== id);
-    setVocab(updated);
-    if (userId) writeLocal(vocabKey(userId), updated);
-    if (userId && !id.startsWith('local-')) {
+    setVocab((prev) => prev.filter((w) => w.id !== id));
+    if (!id.startsWith('temp-')) {
       await supabase.from('vocab_words').delete().eq('id', id);
     }
   }
 
-  // ── Milestone handlers ────────────────────────────────────────────────────
+  // ── Milestone handlers ──────────────────────────────────────────────────────
 
   async function addMilestone(text: string, emoji: string) {
-    const tempId = `local-${Date.now()}`;
-    const newM: Milestone = { id: tempId, text, emoji, type: 'manual', created_at: new Date().toISOString() };
-    const updated = [newM, ...milestones];
-    setMilestones(updated);
-    if (userId) writeLocal(milestonesKey(userId), updated);
-
-    if (userId) {
-      const { data } = await supabase
-        .from('journal_milestones')
-        .insert({ user_id: userId, text, emoji, type: 'manual' })
-        .select('*')
-        .single();
-      if (data) setMilestones((prev) => prev.map((x) => (x.id === tempId ? data as Milestone : x)));
-    }
+    if (!userId) return;
+    const tempId = `temp-${Date.now()}`;
+    setMilestones((prev) => [{ id: tempId, text, emoji, type: 'manual', created_at: new Date().toISOString() }, ...prev]);
+    const { data } = await supabase.from('journal_milestones').insert({ user_id: userId, text, emoji, type: 'manual' }).select('*').single();
+    if (data) setMilestones((prev) => prev.map((x) => (x.id === tempId ? data as Milestone : x)));
   }
 
   async function deleteMilestone(id: string) {
-    const updated = milestones.filter((m) => m.id !== id);
-    setMilestones(updated);
-    if (userId) writeLocal(milestonesKey(userId), updated);
-    if (userId && !id.startsWith('local-')) {
+    setMilestones((prev) => prev.filter((m) => m.id !== id));
+    if (!id.startsWith('temp-')) {
       await supabase.from('journal_milestones').delete().eq('id', id);
     }
   }
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  // ── Derived ─────────────────────────────────────────────────────────────────
 
   const pinnedEntries = entries.filter((e) => e.pinned);
-
   const onThisDay = entries.find((e) => isSameDayPastYear(e.created_at));
-
   const filteredEntries = entries.filter((e) => {
     const matchesTag = filterTag === 'all' || e.tag === filterTag;
     const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      e.content.toLowerCase().includes(q) ||
+    const matchesSearch = !q || e.content.toLowerCase().includes(q) ||
       (e.surah_number ? surahLabel(e.surah_number).toLowerCase().includes(q) : false);
     return matchesTag && matchesSearch;
   });
 
-  const isEmpty = entries.length === 0;
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  // ─────────────────────────────────────────────────────────────────────────
+  const TABS: { key: ActiveTab; label: string; count: number }[] = [
+    { key: 'entries',    label: 'Entries',    count: entries.length },
+    { key: 'vocab',      label: 'Vocabulary', count: vocab.length },
+    { key: 'milestones', label: 'Milestones', count: milestones.length },
+  ];
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <IslamicPattern />
 
-      <div className="relative mx-auto w-full max-w-400 px-6 py-10 lg:px-16 lg:py-14">
-        <div className="space-y-12">
+      <div className="relative mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 lg:py-14">
 
-          {/* ── Page heading ──────────────────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Private · Spiritual
-            </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">
-              My Journal
-            </h1>
-            <p className="mt-2 text-base text-slate-400 dark:text-slate-500">
-              Reflections, intentions, and milestones on your hifdh journey.
-            </p>
-          </motion.div>
+        {/* ── Header ── */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">Private · Spiritual</p>
+          <h1 className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">My Journal</h1>
+          <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
+            {loading ? 'Loading…' : `${entries.length} entries · ${vocab.length} vocab words · ${milestones.length} milestones`}
+          </p>
+        </motion.div>
 
-          <Divider />
+        {/* ── Tab bar ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 }}
+          className="mt-8 flex gap-1 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900"
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                activeTab === tab.key
+                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-200'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  activeTab === tab.key
+                    ? 'bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-950'
+                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </motion.div>
 
-          {/* ── 1. Monthly Goals (collapsible) ───────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-          >
-            <Collapsible label="Monthly Goals" badge={undefined} defaultOpen>
-              <div className="mt-2">
-                <MonthlyTasks userId={userId} />
-              </div>
-            </Collapsible>
-          </motion.section>
+        {/* ── Tab content ── */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="mt-6"
+        >
 
-          <Divider />
+          {/* ────────────────── ENTRIES TAB ────────────────── */}
+          {activeTab === 'entries' && (
+            <div className="space-y-5">
+              {/* Stats chips */}
+              {!loading && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                    {entries.length} total
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                    {pinnedEntries.length} pinned
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                    {thisWeekCount(entries)} this week
+                  </span>
+                </div>
+              )}
 
-          {/* ── 2. Weekly niyyah ─────────────────────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.08 }}
-          >
-            <WeeklyNiyyah userId={userId} />
-          </motion.section>
+              {/* Write form */}
+              <WriteForm onSave={addEntry} />
 
-          <Divider />
-
-          {/* ── 3. On this day (conditional) ─────────────────────────────── */}
-          {onThisDay && (
-            <>
-              <motion.section
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.1 }}
-              >
-                <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-5 dark:border-amber-900/30 dark:bg-amber-950/20">
-                  <p className="mb-3 text-xs font-semibold text-amber-600 dark:text-amber-500">
-                    📖 {yearsAgo(onThisDay.created_at)}
+              {/* On This Day */}
+              {onThisDay && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3.5 dark:border-amber-900/40 dark:bg-amber-950/20">
+                  <p className="mb-2 text-xs font-semibold text-amber-600 dark:text-amber-500">
+                    📖 On this day, {new Date(onThisDay.created_at).getFullYear()}
                   </p>
-                  <p className="text-sm leading-7 text-slate-700 dark:text-slate-300 line-clamp-4">
-                    {onThisDay.content}
-                  </p>
+                  <p className="line-clamp-3 text-sm leading-6 text-slate-700 dark:text-slate-300">{onThisDay.content}</p>
                   {onThisDay.surah_number && (
-                    <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-                      {surahLabel(onThisDay.surah_number)}
-                      {onThisDay.ayah_number ? ` · Ayah ${onThisDay.ayah_number}` : ''}
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      {surahLabel(onThisDay.surah_number)}{onThisDay.ayah_number ? ` · Ayah ${onThisDay.ayah_number}` : ''}
                     </p>
                   )}
                 </div>
-              </motion.section>
-              <Divider />
-            </>
-          )}
+              )}
 
-          {/* ── 4. Pinned entries (conditional) ──────────────────────────── */}
-          {pinnedEntries.length > 0 && (
-            <>
-              <motion.section
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35 }}
-              >
-                <SectionLabel>Pinned</SectionLabel>
-                <div className="space-y-3">
-                  {pinnedEntries.map((entry) => (
-                    <EntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onPin={togglePin}
-                      onDelete={deleteEntry}
-                    />
-                  ))}
-                </div>
-              </motion.section>
-              <Divider />
-            </>
-          )}
-
-          {/* ── 5. Write new entry (always visible) ──────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.12 }}
-          >
-            <EntryForm onSave={addEntry} />
-          </motion.section>
-
-          <Divider />
-
-          {/* ── 6. Past entries ───────────────────────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
-            {isEmpty ? (
-              /* Empty state */
-              <div className="rounded-3xl border border-slate-100 bg-white/60 px-8 py-14 text-center dark:border-slate-800/60 dark:bg-slate-900/40">
-                <p className="font-arabic text-2xl leading-[3rem] text-emerald-700 dark:text-emerald-500" dir="rtl">
-                  خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ
-                </p>
-                <p className="mt-2 text-sm italic text-slate-400 dark:text-slate-500">
-                  "The best of you are those who learn the Quran and teach it."
-                </p>
-                <p className="mt-1 text-xs text-slate-300 dark:text-slate-700">
-                  — Prophet Muhammad ﷺ
-                </p>
-                <p className="mt-6 text-sm text-slate-400 dark:text-slate-500">
-                  Your journey begins with one reflection.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Search + filter bar */}
-                <div className="mb-5 flex flex-wrap items-center gap-3">
-                  <div className="relative flex-1 min-w-[180px]">
-                    <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search entries…"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-600"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {(['all', 'tadabbur', 'milestone', 'struggle', 'breakthrough'] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setFilterTag(t)}
-                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                          filterTag === t
-                            ? t === 'all'
-                              ? 'border-slate-400 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                              : TAG_STYLES[t as Tag]
-                            : 'border-slate-200 text-slate-400 hover:border-slate-300 dark:border-slate-700 dark:text-slate-600'
-                        }`}
-                      >
-                        {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
-                      </button>
+              {/* Pinned */}
+              {pinnedEntries.length > 0 && (
+                <div>
+                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Pinned</p>
+                  <div className="space-y-2.5">
+                    {pinnedEntries.map((e) => (
+                      <EntryCard key={e.id} entry={e} onPin={togglePin} onDelete={deleteEntry} />
                     ))}
                   </div>
                 </div>
+              )}
 
-                {filteredEntries.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-slate-300 dark:text-slate-700">
-                    No entries match your search.
+              {/* All entries */}
+              {loading ? (
+                <div className="space-y-2.5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+                  ))}
+                </div>
+              ) : entries.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-8 py-14 text-center dark:border-slate-800">
+                  <p className="font-arabic text-2xl leading-12 text-emerald-700 dark:text-emerald-500" dir="rtl">
+                    خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ
                   </p>
-                ) : (
-                  <div className="space-y-3">
-                    <AnimatePresence initial={false}>
-                      {filteredEntries.map((entry) => (
-                        <motion.div
-                          key={entry.id}
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.97 }}
-                          transition={{ duration: 0.2 }}
+                  <p className="mt-2 text-sm italic text-slate-400">"The best of you are those who learn the Quran and teach it."</p>
+                  <p className="mt-5 text-sm text-slate-400">Your journey begins with one reflection. Write above.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Filter bar */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative min-w-40 flex-1">
+                      <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search entries…"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-600"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['all', ...Object.keys(TAG_CONFIG)] as (Tag | 'all')[]).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setFilterTag(t)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                            filterTag === t
+                              ? t === 'all'
+                                ? 'border-slate-400 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                                : TAG_CONFIG[t as Tag].activePill
+                              : t === 'all'
+                                ? 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-700 dark:text-slate-500'
+                                : TAG_CONFIG[t as Tag].pill
+                          }`}
                         >
-                          <EntryCard
-                            entry={entry}
-                            onPin={togglePin}
-                            onDelete={deleteEntry}
-                          />
-                        </motion.div>
+                          {t === 'all' ? 'All' : TAG_CONFIG[t as Tag].label}
+                        </button>
                       ))}
-                    </AnimatePresence>
+                    </div>
                   </div>
-                )}
-              </>
-            )}
-          </motion.section>
 
-          <Divider />
+                  {filteredEntries.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-slate-400">No entries match your filter.</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <AnimatePresence initial={false}>
+                        {filteredEntries.map((entry) => (
+                          <motion.div
+                            key={entry.id}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.97 }}
+                            transition={{ duration: 0.18 }}
+                          >
+                            <EntryCard entry={entry} onPin={togglePin} onDelete={deleteEntry} />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
-          {/* ── 7. Vocabulary bank (collapsible) ─────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.18 }}
-          >
-            <Collapsible label="Vocabulary Bank" badge={vocab.length || undefined}>
-              <VocabBank words={vocab} onAdd={addVocab} onDelete={deleteVocab} />
-            </Collapsible>
-          </motion.section>
+          {/* ────────────────── VOCAB TAB ────────────────── */}
+          {activeTab === 'vocab' && (
+            <VocabTab words={vocab} onAdd={addVocab} onDelete={deleteVocab} />
+          )}
 
-          <Divider />
+          {/* ────────────────── MILESTONES TAB ────────────────── */}
+          {activeTab === 'milestones' && (
+            <MilestonesTab milestones={milestones} onAdd={addMilestone} onDelete={deleteMilestone} />
+          )}
 
-          {/* ── 8. Milestone log (collapsible) ───────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            <Collapsible label="Milestone Log" badge={milestones.length || undefined}>
-              <MilestoneLog milestones={milestones} onAdd={addMilestone} onDelete={deleteMilestone} />
-            </Collapsible>
-          </motion.section>
-
-        </div>
+        </motion.div>
       </div>
     </div>
   );
