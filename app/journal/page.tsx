@@ -139,15 +139,98 @@ function thisWeekCount(entries: JournalEntry[]): number {
 
 // ─── Entry Card ───────────────────────────────────────────────────────────────
 
-function EntryCard({ entry, onPin, onDelete }: {
+function EntryCard({ entry, onPin, onDelete, onEdit }: {
   entry: JournalEntry;
   onPin: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surah_number' | 'ayah_number'>) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(entry.content);
+  const [editTag, setEditTag] = useState<Tag>(entry.tag);
+  const [editSurah, setEditSurah] = useState(entry.surah_number ? String(entry.surah_number) : '');
+  const [editAyah, setEditAyah] = useState(entry.ayah_number ? String(entry.ayah_number) : '');
+  const [saving, setSaving] = useState(false);
+
   const cfg = TAG_CONFIG[entry.tag];
   const isLong = entry.content.length > 240;
   const displayContent = isLong && !expanded ? entry.content.slice(0, 240) + '…' : entry.content;
+
+  function startEdit() {
+    setEditContent(entry.content);
+    setEditTag(entry.tag);
+    setEditSurah(entry.surah_number ? String(entry.surah_number) : '');
+    setEditAyah(entry.ayah_number ? String(entry.ayah_number) : '');
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!editContent.trim()) return;
+    setSaving(true);
+    const surahNum = parseSurahInput(editSurah);
+    const ayahNum = editAyah.trim() ? parseInt(editAyah, 10) : null;
+    await onEdit(entry.id, {
+      content: editContent.trim(),
+      tag: editTag,
+      surah_number: surahNum,
+      ayah_number: isNaN(ayahNum as number) ? null : ayahNum,
+    });
+    setSaving(false);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className={`rounded-xl border border-slate-200 border-l-4 ${cfg.leftBorder} bg-white px-4 py-3.5 shadow-sm dark:border-slate-700 dark:bg-slate-900`}>
+        <div className="mb-3 flex gap-2">
+          <div className="flex-1">
+            <input
+              list="surah-datalist-edit"
+              value={editSurah}
+              onChange={(e) => setEditSurah(e.target.value)}
+              placeholder="Surah (optional)"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600"
+            />
+            <datalist id="surah-datalist-edit">
+              {SURAH_NAMES.map((name, i) => <option key={i} value={name} />)}
+            </datalist>
+          </div>
+          <input
+            type="number" min={1}
+            value={editAyah}
+            onChange={(e) => setEditAyah(e.target.value)}
+            placeholder="Ayah #"
+            className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          />
+        </div>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {(Object.keys(TAG_CONFIG) as Tag[]).map((t) => (
+            <button key={t} type="button" onClick={() => setEditTag(t)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${editTag === t ? TAG_CONFIG[t].activePill : TAG_CONFIG[t].pill}`}>
+              {TAG_CONFIG[t].label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          rows={4}
+          className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+        />
+        <div className="mt-3 flex justify-end gap-2">
+          <button type="button" onClick={() => setEditing(false)}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800">
+            Cancel
+          </button>
+          <button type="button" onClick={saveEdit} disabled={!editContent.trim() || saving}
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`group relative rounded-xl border border-slate-100 border-l-4 ${cfg.leftBorder} bg-white px-4 py-3.5 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80`}>
@@ -173,38 +256,35 @@ function EntryCard({ entry, onPin, onDelete }: {
       {/* Content */}
       <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-300">{displayContent}</p>
       {isLong && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-        >
+        <button type="button" onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400">
           {expanded ? 'Show less ↑' : 'Read more ↓'}
         </button>
       )}
 
       {/* Actions */}
       <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2.5 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={() => onPin(entry.id)}
+        <button type="button" onClick={() => onPin(entry.id)}
           className={`flex items-center gap-1 text-xs font-medium transition ${
             entry.pinned
               ? 'text-amber-500 dark:text-amber-400'
               : 'text-slate-300 hover:text-amber-500 dark:text-slate-700 dark:hover:text-amber-400'
-          }`}
-        >
+          }`}>
           <svg className="h-3.5 w-3.5" fill={entry.pinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
           {entry.pinned ? 'Pinned' : 'Pin'}
         </button>
-        <button
-          type="button"
-          onClick={() => onDelete(entry.id)}
-          className="text-xs text-slate-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100 dark:text-slate-700 dark:hover:text-red-400"
-        >
-          Delete
-        </button>
+        <div className="flex items-center gap-3 opacity-0 transition group-hover:opacity-100">
+          <button type="button" onClick={startEdit}
+            className="text-xs text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300">
+            Edit
+          </button>
+          <button type="button" onClick={() => onDelete(entry.id)}
+            className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400">
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -494,20 +574,24 @@ export default function JournalPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<Tag | 'all'>('all');
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // ── Load from Supabase ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data, error: authErr }) => {
+      if (authErr) { setDbError(`Auth error: ${authErr.message}`); setLoading(false); return; }
       const uid = data?.user?.id ?? null;
       setUserId(uid);
-      if (!uid) { setLoading(false); return; }
+      if (!uid) { setDbError('Not signed in — please sign in first.'); setLoading(false); return; }
 
       Promise.all([
         supabase.from('journal_entries').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('vocab_words').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
         supabase.from('journal_milestones').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
       ]).then(([e, v, m]) => {
+        const loadErr = e.error || v.error || m.error;
+        if (loadErr) { setDbError(`Load error: ${loadErr.message}`); }
         if (e.data) setEntries(e.data as JournalEntry[]);
         if (v.data) setVocab(v.data as VocabWord[]);
         if (m.data) setMilestones(m.data as Milestone[]);
@@ -524,27 +608,63 @@ export default function JournalPage() {
     const optimistic: JournalEntry = { ...e, id: tempId, pinned: false, created_at: new Date().toISOString() };
     setEntries((prev) => [optimistic, ...prev]);
 
-    const { data } = await supabase
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      content: e.content,
+      tag: e.tag,
+      pinned: false,
+    };
+    if (e.surah_number != null) payload.surah_number = e.surah_number;
+    if (e.ayah_number != null) payload.ayah_number = e.ayah_number;
+
+    const { data, error } = await supabase
       .from('journal_entries')
-      .insert({ user_id: userId, ...e, pinned: false })
+      .insert(payload)
       .select('*')
       .single();
+    if (error) {
+      console.warn('addEntry error:', error);
+      setDbError(`Save failed: ${error.message} (code: ${error.code})`);
+      setEntries((prev) => prev.filter((x) => x.id !== tempId));
+      return;
+    }
     if (data) setEntries((prev) => prev.map((x) => (x.id === tempId ? data as JournalEntry : x)));
+  }
+
+  async function updateEntry(id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surah_number' | 'ayah_number'>) {
+    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
+    const { error } = await supabase
+      .from('journal_entries')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', userId!);
+    if (error) console.warn('updateEntry error:', error);
   }
 
   async function togglePin(id: string) {
     const entry = entries.find((e) => e.id === id);
     if (!entry) return;
-    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, pinned: !e.pinned } : e));
+    const newPinned = !entry.pinned;
+    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, pinned: newPinned } : e));
     if (!id.startsWith('temp-')) {
-      await supabase.from('journal_entries').update({ pinned: !entry.pinned }).eq('id', id);
+      const { error } = await supabase
+        .from('journal_entries')
+        .update({ pinned: newPinned })
+        .eq('id', id)
+        .eq('user_id', userId!);
+      if (error) console.warn('togglePin error:', error);
     }
   }
 
   async function deleteEntry(id: string) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
     if (!id.startsWith('temp-')) {
-      await supabase.from('journal_entries').delete().eq('id', id);
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId!);
+      if (error) console.warn('deleteEntry error:', error);
     }
   }
 
@@ -554,14 +674,29 @@ export default function JournalPage() {
     if (!userId) return;
     const tempId = `temp-${Date.now()}`;
     setVocab((prev) => [{ ...w, id: tempId, created_at: new Date().toISOString() }, ...prev]);
-    const { data } = await supabase.from('vocab_words').insert({ user_id: userId, ...w }).select('*').single();
+    const { data, error } = await supabase.from('vocab_words').insert({ user_id: userId, ...w }).select('*').single();
+    if (error) {
+      console.warn('addVocab error:', error);
+      setVocab((prev) => prev.filter((x) => x.id !== tempId));
+      return;
+    }
     if (data) setVocab((prev) => prev.map((x) => (x.id === tempId ? data as VocabWord : x)));
   }
 
   async function deleteVocab(id: string) {
+    const removed = vocab.find((w) => w.id === id);
     setVocab((prev) => prev.filter((w) => w.id !== id));
     if (!id.startsWith('temp-')) {
-      await supabase.from('vocab_words').delete().eq('id', id);
+      const { error } = await supabase
+        .from('vocab_words')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId!);
+      if (error) {
+        console.warn('deleteVocab error:', error);
+        setDbError(`Delete failed: ${error.message} (code: ${error.code})`);
+        if (removed) setVocab((prev) => [...prev, removed]);
+      }
     }
   }
 
@@ -571,14 +706,29 @@ export default function JournalPage() {
     if (!userId) return;
     const tempId = `temp-${Date.now()}`;
     setMilestones((prev) => [{ id: tempId, text, emoji, type: 'manual', created_at: new Date().toISOString() }, ...prev]);
-    const { data } = await supabase.from('journal_milestones').insert({ user_id: userId, text, emoji, type: 'manual' }).select('*').single();
+    const { data, error } = await supabase.from('journal_milestones').insert({ user_id: userId, text, emoji, type: 'manual' }).select('*').single();
+    if (error) {
+      console.warn('addMilestone error:', error);
+      setMilestones((prev) => prev.filter((x) => x.id !== tempId));
+      return;
+    }
     if (data) setMilestones((prev) => prev.map((x) => (x.id === tempId ? data as Milestone : x)));
   }
 
   async function deleteMilestone(id: string) {
+    const removed = milestones.find((m) => m.id === id);
     setMilestones((prev) => prev.filter((m) => m.id !== id));
     if (!id.startsWith('temp-')) {
-      await supabase.from('journal_milestones').delete().eq('id', id);
+      const { error } = await supabase
+        .from('journal_milestones')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId!);
+      if (error) {
+        console.warn('deleteMilestone error:', error);
+        setDbError(`Delete failed: ${error.message} (code: ${error.code})`);
+        if (removed) setMilestones((prev) => [...prev, removed]);
+      }
     }
   }
 
@@ -606,7 +756,15 @@ export default function JournalPage() {
     <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <IslamicPattern />
 
-      <div className="relative mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 lg:py-14">
+      <div className="relative mx-auto w-full max-w-400 px-6 py-10 lg:px-16 lg:py-14">
+
+        {/* ── Error banner ── */}
+        {dbError && (
+          <div className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
+            <span className="break-all">{dbError}</span>
+            <button type="button" onClick={() => setDbError(null)} className="shrink-0 font-bold">✕</button>
+          </div>
+        )}
 
         {/* ── Header ── */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -697,7 +855,7 @@ export default function JournalPage() {
                   <p className="mb-2.5 text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Pinned</p>
                   <div className="space-y-2.5">
                     {pinnedEntries.map((e) => (
-                      <EntryCard key={e.id} entry={e} onPin={togglePin} onDelete={deleteEntry} />
+                      <EntryCard key={e.id} entry={e} onPin={togglePin} onDelete={deleteEntry} onEdit={updateEntry} />
                     ))}
                   </div>
                 </div>
@@ -767,7 +925,7 @@ export default function JournalPage() {
                             exit={{ opacity: 0, scale: 0.97 }}
                             transition={{ duration: 0.18 }}
                           >
-                            <EntryCard entry={entry} onPin={togglePin} onDelete={deleteEntry} />
+                            <EntryCard entry={entry} onPin={togglePin} onDelete={deleteEntry} onEdit={updateEntry} />
                           </motion.div>
                         ))}
                       </AnimatePresence>
