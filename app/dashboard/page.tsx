@@ -15,7 +15,7 @@ import { WeeklyIntentionCard } from '@/components/WeeklyIntentionCard';
 import { MonthlyTasks } from '@/components/MonthlyTasks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
 import { CalendarView } from '@/components/CalendarView';
-import { getSurahsInJuz, SURAH_TO_JUZ } from '@/lib/juzData';
+import { JUZ_TO_SURAHS, SURAH_TO_JUZ } from '@/lib/juzData';
 
 type DailyLog = {
   id?: string;
@@ -96,6 +96,7 @@ export default function DashboardPage() {
   const [progressRows, setProgressRows] = useState<{ surah_number: number; status: string; last_reviewed: string | null }[]>([]);
   const [showHijri, setShowHijri] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [manualJuz, setManualJuz] = useState<number | null>(null);
 
   // Ring 3 state from weekly intentions
   const [intentionsDone, setIntentionsDone] = useState(0);
@@ -105,6 +106,12 @@ export default function DashboardPage() {
   const todayKey = getDateKey(today);
 
   useEffect(() => {
+    // Restore manual juz selection from localStorage
+    try {
+      const saved = localStorage.getItem('hifdh-target-juz');
+      if (saved) setManualJuz(parseInt(saved));
+    } catch {}
+
     async function load() {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
@@ -118,6 +125,13 @@ export default function DashboardPage() {
         ''
       );
 
+      // Show cached rings instantly while Supabase loads
+      try {
+        const cached = JSON.parse(localStorage.getItem(`hifdh-dash-${user.id}`) || 'null');
+        if (cached?.progressRows) setProgressRows(cached.progressRows);
+        if (cached?.logs) setLogs(cached.logs);
+      } catch {}
+
       const [logsRes, progressRes] = await Promise.all([
         supabase
           .from('daily_logs')
@@ -130,14 +144,21 @@ export default function DashboardPage() {
           .eq('user_id', user.id),
       ]);
 
-      if (logsRes.data) {
-        setLogs(
-          [...logsRes.data].sort((a, b) => a.log_date.localeCompare(b.log_date)) as DailyLog[]
-        );
-      }
-      if (progressRes.data) {
-        setProgressRows(progressRes.data as { surah_number: number; status: string; last_reviewed: string | null }[]);
-      }
+      const newLogs = logsRes.data
+        ? ([...logsRes.data].sort((a, b) => a.log_date.localeCompare(b.log_date)) as DailyLog[])
+        : null;
+      const newProgress = progressRes.data as { surah_number: number; status: string; last_reviewed: string | null }[] | null;
+
+      if (newLogs) setLogs(newLogs);
+      if (newProgress) setProgressRows(newProgress);
+
+      // Persist for next load
+      try {
+        localStorage.setItem(`hifdh-dash-${user.id}`, JSON.stringify({
+          progressRows: newProgress ?? [],
+          logs: newLogs ?? [],
+        }));
+      } catch {}
     }
     load();
   }, [todayKey]);
@@ -146,17 +167,26 @@ export default function DashboardPage() {
   const memorizedSurahs = progressRows.filter((r) => r.status === 'memorized').map((r) => r.surah_number);
   const ring1 = Math.min(100, Math.round((memorizedSurahs.length / 114) * 100));
 
-  // Current juz = juz of the most recently reviewed surah (reflects what the user is actively working on)
   const mostRecent = [...progressRows]
     .filter((r) => r.last_reviewed)
     .sort((a, b) => new Date(b.last_reviewed!).getTime() - new Date(a.last_reviewed!).getTime())[0];
-  const currentJuz = mostRecent ? (SURAH_TO_JUZ[mostRecent.surah_number] ?? 1) : 1;
-  const juzSurahs = getSurahsInJuz(currentJuz);
+  const autoJuz = mostRecent ? (SURAH_TO_JUZ[mostRecent.surah_number] ?? 1) : 1;
+  const currentJuz = manualJuz ?? autoJuz;
+  const juzSurahs = JUZ_TO_SURAHS[currentJuz] ?? [];
   const memorizedSet = new Set(memorizedSurahs);
-  const juzDone = juzSurahs.filter((s) => memorizedSet.has(s)).length;
+  const juzDone = juzSurahs.filter((s: number) => memorizedSet.has(s)).length;
   const ring2 = juzSurahs.length ? Math.round((juzDone / juzSurahs.length) * 100) : 0;
 
   const ring3 = intentionsTotal > 0 ? Math.round((intentionsDone / intentionsTotal) * 100) : 0;
+
+  function setTargetJuz(juz: number) {
+    setManualJuz(juz);
+    try { localStorage.setItem('hifdh-target-juz', String(juz)); } catch {}
+  }
+  function clearTargetJuz() {
+    setManualJuz(null);
+    try { localStorage.removeItem('hifdh-target-juz'); } catch {}
+  }
 
   const dateString = showHijri ? formatHijri(today) : formatGregorian(today);
 
@@ -255,6 +285,38 @@ export default function DashboardPage() {
                 subtitle={`${intentionsDone} ${t('of')} ${intentionsTotal}`}
                 detail={intentionsTotal === 0 ? t('addIntentionsAbove') : `${intentionsTotal - intentionsDone} ${t('remainingThisWeek')}`}
               />
+            </div>
+
+            {/* Juz selector */}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Studying Juz
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((j) => (
+                  <button
+                    key={j}
+                    type="button"
+                    onClick={() => setTargetJuz(j)}
+                    className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all ${
+                      currentJuz === j
+                        ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {j}
+                  </button>
+                ))}
+              </div>
+              {manualJuz && (
+                <button
+                  type="button"
+                  onClick={clearTargetJuz}
+                  className="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                >
+                  auto-detect
+                </button>
+              )}
             </div>
           </motion.section>
 
