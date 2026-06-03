@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   themeColor: '#1e293b',
   viewport: 'width=device-width, initial-scale=1',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({

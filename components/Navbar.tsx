@@ -116,11 +116,25 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/95">
-      <div className="mx-auto flex max-w-400 items-center justify-between px-4 py-3 sm:px-6 lg:px-16">
+      <div className="mx-auto flex h-16 max-w-400 items-center justify-between px-4 sm:px-6 lg:px-16 overflow-hidden">
 
         {/* Logo */}
-        <Link href="/" className="shrink-0 text-base font-semibold text-slate-900 transition hover:text-slate-600 dark:text-slate-100 dark:hover:text-slate-300 sm:text-lg">
-          My Hifdh Journey
+        <Link href="/" className="shrink-0 flex items-center gap-2 transition hover:opacity-80">
+          <div
+            className="h-25 w-35 shrink-0"
+            style={{
+              background: 'linear-gradient(150deg, #d4af6e 0%, #c9a020 50%, #8b6510 100%)',
+              WebkitMaskImage: 'url(/logo.png)',
+              WebkitMaskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskImage: 'url(/logo.png)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+          />
+          <span className="text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">My Hifdh Journey</span>
         </Link>
 
         {/* ── Desktop nav ─────────────────────────────────── */}

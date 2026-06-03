@@ -187,10 +187,23 @@ export default function MapPage() {
       .eq('user_id', userId)
       .then(({ data }) => {
         if (!data?.length) return;
-        const map = new Map<number, SurahProgress>();
-        for (const row of data) map.set(row.surah_number, row as SurahProgress);
-        setProgress(map);
-        saveLocalProgress(userId, map);
+        // Merge: keep whichever entry has a newer last_reviewed so local
+        // changes made before the fetch completes are never overwritten.
+        setProgress((prev) => {
+          const next = new Map(prev);
+          for (const row of data) {
+            const existing = prev.get(row.surah_number);
+            const prevTime = existing?.last_reviewed ? new Date(existing.last_reviewed).getTime() : 0;
+            const rowTime = (row as SurahProgress).last_reviewed
+              ? new Date((row as SurahProgress).last_reviewed!).getTime()
+              : 0;
+            if (!existing || rowTime >= prevTime) {
+              next.set(row.surah_number, row as SurahProgress);
+            }
+          }
+          saveLocalProgress(userId, next);
+          return next;
+        });
       });
   }, [userId]);
 
@@ -220,6 +233,15 @@ export default function MapPage() {
     updateProgress(num, { status: panelStatus, notes: panelNotes, last_reviewed: now });
     const { ok } = await robustUpsert(userId, num, { status: panelStatus, notes: panelNotes, last_reviewed: now });
     setSaveState(ok ? 'saved' : 'error');
+    // Record as the explicit "last session" so the dashboard "where I left off"
+    // always shows the surah the user deliberately bookmarked, not just the
+    // last status-change.
+    try {
+      localStorage.setItem(
+        `hifdh-last-session-${userId}`,
+        JSON.stringify({ surahNumber: num, at: now }),
+      );
+    } catch {}
     if (ok) {
       if (savedReset.current) clearTimeout(savedReset.current);
       savedReset.current = setTimeout(() => setSaveState('idle'), 2500);

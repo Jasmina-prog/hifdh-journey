@@ -1,10 +1,7 @@
 'use client';
 
-type DailyLog = {
-  log_date: string;
-  sabaq_done: boolean;
-  sabqi_done: boolean;
-  manzil_done: boolean;
+type ProgressRow = {
+  last_reviewed: string | null;
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -22,18 +19,21 @@ function getLevel(count: number, isFuture: boolean): 0 | 1 | 2 | 3 | 4 {
   if (isFuture || count === 0) return 0;
   if (count === 1) return 1;
   if (count === 2) return 2;
-  if (count === 3) return 4;
+  if (count >= 3) return 4;
   return 3;
 }
 
-export function ActivityHeatmap({ logs }: { logs: DailyLog[] }) {
+export function ActivityHeatmap({ progressRows = [] }: { progressRows?: ProgressRow[] }) {
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
 
-  const logMap = new Map<string, number>();
-  for (const log of logs) {
-    const count = Number(log.sabaq_done) + Number(log.sabqi_done) + Number(log.manzil_done);
-    if (count > 0) logMap.set(log.log_date, count);
+  // Count surahs reviewed per day
+  const activityMap = new Map<string, number>();
+  for (const row of progressRows) {
+    if (row.last_reviewed) {
+      const date = row.last_reviewed.slice(0, 10);
+      activityMap.set(date, (activityMap.get(date) ?? 0) + 1);
+    }
   }
 
   // Start from Sunday of the week 52 weeks ago → 53 columns total
@@ -52,12 +52,13 @@ export function ActivityHeatmap({ logs }: { logs: DailyLog[] }) {
       if (d === 0 && cursor.getDate() <= 7) {
         monthLabels.push({ month: cursor.getMonth(), col: w });
       }
-      grid[d].push({ date: key, level: getLevel(logMap.get(key) ?? 0, key > todayStr) });
+      grid[d].push({ date: key, level: getLevel(activityMap.get(key) ?? 0, key > todayStr) });
       cursor.setDate(cursor.getDate() + 1);
     }
   }
 
-  const totalDone = logs.filter((l) => l.sabaq_done || l.sabqi_done || l.manzil_done).length;
+  const thisYear = today.getFullYear().toString();
+  const totalDone = Array.from(activityMap.keys()).filter((d) => d.startsWith(thisYear)).length;
 
   return (
     <div className="w-full">
@@ -98,22 +99,29 @@ export function ActivityHeatmap({ logs }: { logs: DailyLog[] }) {
             gap: 3,
           }}
         >
-          {grid.flatMap((row, d) =>
-            row.map((cell, w) => (
-              <div
-                key={`${d}-${w}`}
-                title={cell.date}
-                className={`rounded-xs ${LEVEL_CLASSES[cell.level]}`}
-                style={{ aspectRatio: '1 / 1' }}
-              />
-            ))
-          )}
+          {Array.from({ length: WEEKS }, (_, w) =>
+            Array.from({ length: 7 }, (_, d) => {
+              const cell = grid[d][w];
+              const count = activityMap.get(cell.date) ?? 0;
+              const tooltip = count > 0
+                ? `${cell.date} · ${count} surah${count > 1 ? 's' : ''} reviewed`
+                : cell.date;
+              return (
+                <div
+                  key={`${d}-${w}`}
+                  title={tooltip}
+                  className={`rounded-xs ${LEVEL_CLASSES[cell.level]}`}
+                  style={{ aspectRatio: '1 / 1' }}
+                />
+              );
+            })
+          ).flat()}
         </div>
       </div>
 
       {/* Legend */}
       <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-        <span>{totalDone} tasks completed this year</span>
+        <span>{totalDone} active day{totalDone !== 1 ? 's' : ''} this year</span>
         <div className="flex items-center gap-1.5">
           <span>Less</span>
           {([0, 1, 2, 3, 4] as const).map((l) => (

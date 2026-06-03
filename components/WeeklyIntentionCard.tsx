@@ -48,20 +48,26 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
         .eq('week', week)
         .order('created_at', { ascending: true })
         .then(({ data, error }) => {
-          if (!error && data && data.length > 0) {
-            const loaded = data as Task[];
-            setTasks(loaded);
-            try { localStorage.setItem(storageKey, JSON.stringify(loaded)); } catch {}
-            onStatsRef.current?.(loaded.filter((t) => t.done).length, loaded.length);
+          if (!error && data) {
+            const fetched = data as Task[];
+            try { localStorage.setItem(storageKey, JSON.stringify(fetched)); } catch {}
+            setTasks((prev) => {
+              const pending = prev.filter((t) => t.id.startsWith('local-'));
+              return pending.length > 0 ? [...fetched, ...pending] : fetched;
+            });
+            onStatsRef.current?.(fetched.filter((t) => t.done).length, fetched.length);
           }
         });
     }
   }, [userId, week, storageKey]);
 
-  function persist(updated: Task[]) {
-    setTasks(updated);
-    try { localStorage.setItem(storageKey, JSON.stringify(updated)); } catch {}
-    onStatsRef.current?.(updated.filter((t) => t.done).length, updated.length);
+  function syncState(updater: (prev: Task[]) => Task[]) {
+    setTasks((prev) => {
+      const next = updater(prev);
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+      onStatsRef.current?.(next.filter((t) => t.done).length, next.length);
+      return next;
+    });
   }
 
   async function addTask() {
@@ -69,34 +75,45 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
     if (!text) return;
 
     const tempId = `local-${Date.now()}`;
-    persist([...tasks, { id: tempId, text, done: false }]);
+    syncState((prev) => [...prev, { id: tempId, text, done: false }]);
     setInput('');
     inputRef.current?.focus();
 
-    if (userId) {
-      const { data } = await supabase
-        .from('weekly_intentions')
-        .insert({ user_id: userId, week, text, done: false })
-        .select('id, text, done')
-        .single();
-      if (data) {
-        setTasks((prev) => prev.map((t) => (t.id === tempId ? (data as Task) : t)));
-      }
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('weekly_intentions')
+      .insert({ user_id: userId, week, text, done: false })
+      .select('id, text, done')
+      .single();
+
+    if (error || !data) {
+      syncState((prev) => prev.filter((t) => t.id !== tempId));
+      return;
     }
+
+    syncState((prev) => {
+      const pending = prev.find((t) => t.id === tempId);
+      if (!pending) {
+        supabase.from('weekly_intentions').delete().eq('id', (data as Task).id).eq('user_id', userId);
+        return prev;
+      }
+      return prev.map((t) => (t.id === tempId ? { ...(data as Task), done: pending.done } : t));
+    });
   }
 
   async function toggleDone(task: Task) {
-    const updated = tasks.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t));
-    persist(updated);
+    const newDone = !task.done;
+    syncState((prev) => prev.map((t) => (t.id === task.id ? { ...t, done: newDone } : t)));
     if (userId && !task.id.startsWith('local-')) {
-      await supabase.from('weekly_intentions').update({ done: !task.done }).eq('id', task.id);
+      await supabase.from('weekly_intentions').update({ done: newDone }).eq('id', task.id).eq('user_id', userId);
     }
   }
 
   async function deleteTask(id: string) {
-    persist(tasks.filter((t) => t.id !== id));
+    syncState((prev) => prev.filter((t) => t.id !== id));
     if (userId && !id.startsWith('local-')) {
-      await supabase.from('weekly_intentions').delete().eq('id', id);
+      await supabase.from('weekly_intentions').delete().eq('id', id).eq('user_id', userId);
     }
   }
 
@@ -108,16 +125,21 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
 
   async function commitEdit() {
     if (!editingId) return;
+    const id = editingId;
     const text = editText.trim();
+    setEditingId(null); // clear immediately so UI unblocks before any await
+
     if (!text) {
-      deleteTask(editingId);
+      syncState((prev) => prev.filter((t) => t.id !== id));
+      if (userId && !id.startsWith('local-')) {
+        await supabase.from('weekly_intentions').delete().eq('id', id).eq('user_id', userId);
+      }
     } else {
-      persist(tasks.map((t) => (t.id === editingId ? { ...t, text } : t)));
-      if (userId && !editingId.startsWith('local-')) {
-        await supabase.from('weekly_intentions').update({ text }).eq('id', editingId);
+      syncState((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
+      if (userId && !id.startsWith('local-')) {
+        await supabase.from('weekly_intentions').update({ text }).eq('id', id).eq('user_id', userId);
       }
     }
-    setEditingId(null);
   }
 
   const done = tasks.filter((t) => t.done).length;
@@ -134,7 +156,7 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
         )}
       </div>
 
-      <ul className="space-y-1.5 flex-1">
+      <ul className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
         {tasks.map((task) => (
           <li
             key={task.id}

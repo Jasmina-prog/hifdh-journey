@@ -2,11 +2,8 @@
 
 import { useState } from 'react';
 
-type DailyLog = {
-  log_date: string;
-  sabaq_done: boolean;
-  sabqi_done: boolean;
-  manzil_done: boolean;
+type ProgressRow = {
+  last_reviewed: string | null;
 };
 
 function toHijriDay(date: Date): string {
@@ -44,14 +41,14 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: () => void; la
   );
 }
 
-export function CalendarView({ logs }: { logs: DailyLog[] }) {
+export function CalendarView({ progressRows }: { progressRows: ProgressRow[] }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [hijri, setHijri] = useState(false);
 
   const activeSet = new Set(
-    logs.filter((l) => l.sabaq_done || l.sabqi_done || l.manzil_done).map((l) => l.log_date)
+    progressRows.flatMap((r) => (r.last_reviewed ? [r.last_reviewed.slice(0, 10)] : []))
   );
 
   function prevMonth() {

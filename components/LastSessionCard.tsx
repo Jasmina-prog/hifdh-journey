@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/lib/supabase';
 import { SURAH_TO_JUZ } from '@/lib/juzData';
 
 const SURAH_NAMES = [
@@ -28,62 +26,53 @@ function daysAgo(dateStr: string, t: (k: string) => string): string {
   return `${diff} ${t('daysAgo')}`;
 }
 
-type SessionInfo = {
-  surahNumber: number | null;
-  lastReviewed: string | null;
-};
+type ProgressRow = { surah_number: number; status: string; last_reviewed: string | null };
 
-export function LastSessionCard({ userId }: { userId: string | null }) {
+export function LastSessionCard({
+  progressRows,
+  lastSession,
+}: {
+  progressRows: ProgressRow[];
+  lastSession?: { surahNumber: number; at: string } | null;
+}) {
   const { t } = useTranslation('common');
-  const [info, setInfo] = useState<SessionInfo>({ surahNumber: null, lastReviewed: null });
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!userId) { setLoading(false); return; }
+  // Use the explicitly bookmarked surah first; fall back to most recently
+  // touched surah with a non-default status.
+  const surahNumber: number | null = lastSession?.surahNumber ?? (
+    [...progressRows]
+      .filter((r) => r.status !== 'not_started')
+      .sort((a, b) => {
+        if (!a.last_reviewed && !b.last_reviewed) return 0;
+        if (!a.last_reviewed) return 1;
+        if (!b.last_reviewed) return -1;
+        return new Date(b.last_reviewed).getTime() - new Date(a.last_reviewed).getTime();
+      })[0]?.surah_number ?? null
+  );
 
-    async function load() {
-      const { data } = await supabase
-        .from('surah_progress')
-        .select('surah_number, last_reviewed')
-        .eq('user_id', userId)
-        .not('last_reviewed', 'is', null)
-        .order('last_reviewed', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      setInfo({
-        surahNumber: data?.surah_number ?? null,
-        lastReviewed: data?.last_reviewed ?? null,
-      });
-      setLoading(false);
-    }
-
-    load();
-  }, [userId]);
-
-  const surahName = info.surahNumber ? SURAH_NAMES[info.surahNumber - 1] : null;
-  const juz = info.surahNumber ? SURAH_TO_JUZ[info.surahNumber] : null;
+  const lastReviewed: string | null = lastSession?.at ??
+    progressRows.find((r) => r.surah_number === surahNumber)?.last_reviewed ?? null;
+  const surahName = surahNumber ? SURAH_NAMES[surahNumber - 1] : null;
+  const juz = surahNumber ? SURAH_TO_JUZ[surahNumber] : null;
 
   return (
     <div className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
       <p className="text-xs uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">{t('whereILeftOff')}</p>
 
-      {loading ? (
-        <p className="mt-4 text-base text-slate-400 animate-pulse">{t('loadingSession')}</p>
-      ) : surahName ? (
+      {surahName ? (
         <div className="mt-4 flex flex-1 flex-col gap-1">
           <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{surahName}</p>
           <p className="text-base text-slate-500 dark:text-slate-400">
-            Surah {info.surahNumber} · Juz {juz}
+            Surah {surahNumber} · Juz {juz}
           </p>
-          {info.lastReviewed && (
+          {lastReviewed && (
             <p className="text-sm text-slate-400 dark:text-slate-500">
-              {daysAgo(info.lastReviewed, t)}
+              {daysAgo(lastReviewed, t)}
             </p>
           )}
           <div className="mt-auto pt-4">
             <Link
-              href={`/map?surah=${info.surahNumber}`}
+              href={`/map?surah=${surahNumber}`}
               className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-200"
             >
               {t('goToMushaMap')}

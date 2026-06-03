@@ -14,17 +14,7 @@ import { LastSessionCard } from '@/components/LastSessionCard';
 import { WeeklyIntentionCard } from '@/components/WeeklyIntentionCard';
 import { MonthlyTasks } from '@/components/MonthlyTasks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
-import { CalendarView } from '@/components/CalendarView';
 import { JUZ_TO_SURAHS, SURAH_TO_JUZ } from '@/lib/juzData';
-
-type DailyLog = {
-  id?: string;
-  user_id: string;
-  log_date: string;
-  sabaq_done: boolean;
-  sabqi_done: boolean;
-  manzil_done: boolean;
-};
 
 function getDateKey(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -77,25 +67,58 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: () => void; la
   );
 }
 
-// Thin divider
+// Thin divider with gold gradient
 function Divider() {
   return (
     <div className="flex items-center gap-4">
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
-      <span className="text-xs text-slate-300 dark:text-slate-700">✦</span>
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
+      <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, #c9943a)' }} />
+      <span className="text-sm text-amber-500/70 dark:text-amber-400/60">✦</span>
+      <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, #c9943a)' }} />
     </div>
   );
+}
+
+type ProgressRow = { surah_number: number; status: string; last_reviewed: string | null };
+
+// Merge Supabase/dashboard-cache rows with the map page's localStorage cache.
+// For each surah, keeps whichever entry has the newer last_reviewed so that
+// "Mark as Last Read" changes on the map page are reflected immediately.
+function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
+  try {
+    const raw = localStorage.getItem(`hifdh-map-progress-${uid}`);
+    if (!raw) return rows;
+    const mapCache = JSON.parse(raw) as Record<string, { status: string; last_reviewed: string | null }>;
+    const map = new Map<number, ProgressRow>(rows.map((r) => [r.surah_number, r]));
+    for (const [key, entry] of Object.entries(mapCache)) {
+      const num = Number(key);
+      const existing = map.get(num);
+      const existingTime = existing?.last_reviewed ? new Date(existing.last_reviewed).getTime() : 0;
+      const entryTime = entry.last_reviewed ? new Date(entry.last_reviewed).getTime() : 0;
+      if (!existing || entryTime > existingTime) {
+        map.set(num, { surah_number: num, status: entry.status, last_reviewed: entry.last_reviewed });
+      }
+    }
+    return [...map.values()];
+  } catch {
+    return rows;
+  }
 }
 
 export default function DashboardPage() {
   const { t } = useTranslation('common');
   const [userName, setUserName] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [userId, setUserId] = useState<string | null>(() => {
+    try { return localStorage.getItem('hifdh-last-user-id'); } catch { return null; }
+  });
   const [progressRows, setProgressRows] = useState<{ surah_number: number; status: string; last_reviewed: string | null }[]>([]);
+  const [lastSession, setLastSession] = useState<{ surahNumber: number; at: string } | null>(() => {
+    try {
+      const uid = localStorage.getItem('hifdh-last-user-id');
+      if (!uid) return null;
+      return JSON.parse(localStorage.getItem(`hifdh-last-session-${uid}`) || 'null');
+    } catch { return null; }
+  });
   const [showHijri, setShowHijri] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
   const [manualJuz, setManualJuz] = useState<number | null>(null);
 
   // Ring 3 state from weekly intentions
@@ -112,12 +135,30 @@ export default function DashboardPage() {
       if (saved) setManualJuz(parseInt(saved));
     } catch {}
 
+    // Load cached data synchronously before any network call so rings appear instantly.
+    // Also merge with the map page's localStorage cache so recent "mark as last read"
+    // changes appear even before the Supabase fetch completes.
+    try {
+      const cachedUid = localStorage.getItem('hifdh-last-user-id');
+      if (cachedUid) {
+        const cached = JSON.parse(localStorage.getItem(`hifdh-dash-${cachedUid}`) || 'null');
+        if (cached?.progressRows?.length) {
+          setProgressRows(mergeWithMapCache(cachedUid, cached.progressRows));
+        }
+      }
+    } catch {}
+
     async function load() {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
       if (!user) return;
 
       setUserId(user.id);
+      try {
+        localStorage.setItem('hifdh-last-user-id', user.id);
+        const session = JSON.parse(localStorage.getItem(`hifdh-last-session-${user.id}`) || 'null');
+        if (session) setLastSession(session);
+      } catch {}
       setUserName(
         (user.user_metadata?.full_name as string) ||
         (user.user_metadata?.name as string) ||
@@ -125,40 +166,22 @@ export default function DashboardPage() {
         ''
       );
 
-      // Show cached rings instantly while Supabase loads
-      try {
-        const cached = JSON.parse(localStorage.getItem(`hifdh-dash-${user.id}`) || 'null');
-        if (cached?.progressRows) setProgressRows(cached.progressRows);
-        if (cached?.logs) setLogs(cached.logs);
-      } catch {}
+      const { data: progressData } = await supabase
+        .from('surah_progress')
+        .select('surah_number,status,last_reviewed')
+        .eq('user_id', user.id);
 
-      const [logsRes, progressRes] = await Promise.all([
-        supabase
-          .from('daily_logs')
-          .select('id,user_id,log_date,sabaq_done,sabqi_done,manzil_done')
-          .eq('user_id', user.id)
-          .order('log_date', { ascending: true }),
-        supabase
-          .from('surah_progress')
-          .select('surah_number,status,last_reviewed')
-          .eq('user_id', user.id),
-      ]);
+      const newProgress = progressData as { surah_number: number; status: string; last_reviewed: string | null }[] | null;
 
-      const newLogs = logsRes.data
-        ? ([...logsRes.data].sort((a, b) => a.log_date.localeCompare(b.log_date)) as DailyLog[])
-        : null;
-      const newProgress = progressRes.data as { surah_number: number; status: string; last_reviewed: string | null }[] | null;
-
-      if (newLogs) setLogs(newLogs);
-      if (newProgress) setProgressRows(newProgress);
-
-      // Persist for next load
-      try {
-        localStorage.setItem(`hifdh-dash-${user.id}`, JSON.stringify({
-          progressRows: newProgress ?? [],
-          logs: newLogs ?? [],
-        }));
-      } catch {}
+      if (newProgress) {
+        // Merge Supabase result with map page's localStorage so local changes win
+        // when Supabase hasn't received them yet.
+        const merged = mergeWithMapCache(user.id, newProgress);
+        setProgressRows(merged);
+        try {
+          localStorage.setItem(`hifdh-dash-${user.id}`, JSON.stringify({ progressRows: merged }));
+        } catch {}
+      }
     }
     load();
   }, [todayKey]);
@@ -204,7 +227,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.45 }}
           >
             <div className="mb-4 text-center">
-              <p dir="rtl" className="font-arabic text-3xl leading-[3rem] text-emerald-700 dark:text-emerald-400">
+              <p dir="rtl" className="font-arabic text-5xl leading-20 text-emerald-700 dark:text-emerald-400">
                 السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
               </p>
             </div>
@@ -240,21 +263,23 @@ export default function DashboardPage() {
 
           <Divider />
 
-          {/* ── 3. Last session / Weekly intentions ──────────────────────── */}
+          {/* ── 3. Last session / Activity heatmap ───────────────────────── */}
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.1 }}
             className="grid gap-10 lg:grid-cols-2"
           >
-            <LastSessionCard userId={userId} />
-            <WeeklyIntentionCard
-              userId={userId}
-              onStatsChange={(done, total) => {
-                setIntentionsDone(done);
-                setIntentionsTotal(total);
-              }}
-            />
+            <LastSessionCard progressRows={progressRows} lastSession={lastSession} />
+            <div className="flex flex-col justify-between gap-4">
+              <div>
+                <SectionLabel>{t('activity')}</SectionLabel>
+                <p className="-mt-3 mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  {new Date().getFullYear()} {t('atAGlance')}
+                </p>
+              </div>
+              <ActivityHeatmap progressRows={progressRows} />
+            </div>
           </motion.section>
 
           <Divider />
@@ -322,44 +347,21 @@ export default function DashboardPage() {
 
           <Divider />
 
-          {/* ── 5. Monthly goals ──────────────────────────────────────────── */}
+          {/* ── 5. Monthly goals + Weekly intentions ─────────────────────── */}
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.18 }}
+            className="grid items-stretch gap-10 lg:grid-cols-2"
           >
             <MonthlyTasks userId={userId} />
-          </motion.section>
-
-          <Divider />
-
-          {/* ── 6. Activity ───────────────────────────────────────────────── */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.22 }}
-          >
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <SectionLabel>{t('activity')}</SectionLabel>
-                <h2 className="-mt-3 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                  {new Date().getFullYear()} {t('atAGlance')}
-                </h2>
-              </div>
-              <Switch
-                on={showCalendar}
-                onChange={() => setShowCalendar((v) => !v)}
-                label={t('calendar')}
-              />
-            </div>
-
-            {showCalendar ? (
-              <div className="rounded-2xl border border-slate-100 bg-white/60 p-6 dark:border-slate-800/60 dark:bg-slate-900/40">
-                <CalendarView logs={logs} />
-              </div>
-            ) : (
-              <ActivityHeatmap logs={logs} />
-            )}
+            <WeeklyIntentionCard
+              userId={userId}
+              onStatsChange={(done, total) => {
+                setIntentionsDone(done);
+                setIntentionsTotal(total);
+              }}
+            />
           </motion.section>
 
         </div>

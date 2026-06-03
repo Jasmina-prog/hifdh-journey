@@ -43,8 +43,8 @@ function cellStyle(tasks: Task[], key: string) {
     if (done === 0)    return { bg: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200 dark:border-rose-800',   bar: 'bg-rose-400',   text: 'text-rose-500 dark:text-rose-500' };
     return { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800', bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-500' };
   }
-  // Future
-  return { bg: 'bg-slate-50/50 dark:bg-slate-900/20', border: 'border-slate-100 dark:border-slate-800', bar: 'bg-transparent', text: 'text-slate-300 dark:text-slate-600' };
+  // Future — dashed border only, no background fill
+  return { bg: 'bg-transparent', border: 'border-dashed border-slate-300 dark:border-slate-600', bar: 'bg-transparent', text: 'text-slate-300 dark:text-slate-600' };
 }
 
 // ─── Year Grid ────────────────────────────────────────────────────────────────
@@ -79,18 +79,17 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
           const total  = tasks.length;
           const pct    = total > 0 ? (done / total) * 100 : 0;
           const style  = cellStyle(tasks, key);
-          const future = !isPast(key) && !isCurrent(key);
           const selected = viewing === key;
 
           return (
             <button
               key={key}
               type="button"
-              onClick={() => !future && onSelect(key)}
+              onClick={() => onSelect(key)}
               className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-1 py-2.5 text-center transition-all
                 ${style.bg}
                 ${selected ? 'border-slate-800 dark:border-slate-200 shadow-md scale-[1.05]' : style.border}
-                ${future ? 'cursor-default opacity-40' : 'hover:scale-[1.03] hover:shadow-sm cursor-pointer'}
+                ${'hover:scale-[1.03] hover:shadow-sm cursor-pointer'}
               `}
             >
               <span className={`text-[11px] font-bold tracking-wide leading-none ${style.text}`}>{abbr}</span>
@@ -223,9 +222,13 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data) {
-          const tasks = data as Task[];
-          setAllTasks(tasks);
-          try { localStorage.setItem(cacheKey, JSON.stringify(tasks)); } catch {}
+          const fetched = data as Task[];
+          try { localStorage.setItem(cacheKey, JSON.stringify(fetched)); } catch {}
+          setAllTasks((prev) => {
+            // Preserve any optimistic (local-*) tasks that are still in-flight
+            const pending = prev.filter((t) => t.id.startsWith('local-'));
+            return pending.length > 0 ? [...fetched, ...pending] : fetched;
+          });
         }
       });
   }, [userId, year]);
@@ -244,20 +247,51 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
   async function addTask() {
     const title = input.trim();
     if (!title) return;
-    const tempId  = `local-${Date.now()}`;
-    const newTask: Task = { id: tempId, title, completed: false, month: curKey };
-    persist([...allTasks, newTask]);
+    const tempId = `local-${Date.now()}`;
+    const newTask: Task = { id: tempId, title, completed: false, month: viewingMonth };
+    const cacheKey = `hifdh-monthly-year-${userId ?? 'guest'}-${year}`;
+
+    // Optimistic insert — functional update avoids stale-closure overwrite
+    setAllTasks((prev) => {
+      const updated = [...prev, newTask];
+      try { localStorage.setItem(cacheKey, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
     setInput('');
     inputRef.current?.focus();
 
-    if (userId) {
-      const { data } = await supabase
-        .from('monthly_tasks')
-        .insert({ user_id: userId, month: curKey, title, completed: false })
-        .select('id,title,completed,month')
-        .single();
-      if (data) persist(allTasks.map((t) => t.id === tempId ? (data as Task) : t));
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('monthly_tasks')
+      .insert({ user_id: userId, month: viewingMonth, title, completed: false })
+      .select('id,title,completed,month')
+      .single();
+
+    if (error || !data) {
+      // Insert failed — roll back the optimistic task
+      setAllTasks((prev) => {
+        const rolled = prev.filter((t) => t.id !== tempId);
+        try { localStorage.setItem(cacheKey, JSON.stringify(rolled)); } catch {}
+        return rolled;
+      });
+      return;
     }
+
+    setAllTasks((prev) => {
+      const pending = prev.find((t) => t.id === tempId);
+      if (!pending) {
+        // Task was deleted while insert was in-flight — undo DB record
+        supabase.from('monthly_tasks').delete().eq('id', (data as Task).id).eq('user_id', userId);
+        return prev;
+      }
+      // Preserve any local state changes (e.g. toggle while insert was in-flight)
+      const updated = prev.map((t) =>
+        t.id === tempId ? { ...(data as Task), completed: pending.completed } : t,
+      );
+      try { localStorage.setItem(cacheKey, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   }
 
   async function toggleTask(task: Task) {
@@ -288,16 +322,18 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
     return acc;
   }, {});
 
-  const viewingTasks = tasksByMonth[viewingMonth] ?? [];
-  const viewingDone  = viewingTasks.filter((t) => t.completed).length;
-  const isViewingCur = isCurrent(viewingMonth);
-  const monthIdx     = parseInt(viewingMonth.slice(5), 10) - 1;
-  const monthLabel   = `${MONTH_FULL[monthIdx]} ${year}`;
+  const viewingTasks    = tasksByMonth[viewingMonth] ?? [];
+  const viewingDone     = viewingTasks.filter((t) => t.completed).length;
+  const isViewingCur    = isCurrent(viewingMonth);
+  const isViewingFuture = !isPast(viewingMonth) && !isCurrent(viewingMonth);
+  const isEditable      = isViewingCur || isViewingFuture;
+  const monthIdx        = parseInt(viewingMonth.slice(5), 10) - 1;
+  const monthLabel      = `${MONTH_FULL[monthIdx]} ${year}`;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div className="flex h-full flex-col">
       {/* Header */}
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <div>
@@ -329,15 +365,16 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.2 }}
+          className="flex flex-1 flex-col min-h-0"
         >
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">{monthLabel}</h3>
               {isViewingCur
                 ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">Current</span>
-                : isPast(viewingMonth)
-                  ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">Ended</span>
-                  : null
+                : isViewingFuture
+                  ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">Upcoming</span>
+                  : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">Ended</span>
               }
             </div>
             {viewingTasks.length > 0 && (
@@ -347,12 +384,12 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
             )}
           </div>
 
-          <ul className="space-y-1.5">
+          <ul className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
             {viewingTasks.map((task) => (
               <TaskRow
                 key={task.id}
                 task={task}
-                editable={isViewingCur}
+                editable={isEditable}
                 onToggle={() => toggleTask(task)}
                 onDelete={() => deleteTask(task.id)}
                 onEdit={(title) => editTask(task, title)}
@@ -360,19 +397,19 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
             ))}
             {viewingTasks.length === 0 && (
               <li className="py-8 text-center text-sm text-slate-300 dark:text-slate-700 select-none">
-                {isViewingCur ? 'No goals yet — add one below.' : 'No goals were set for this month.'}
+                {isViewingCur ? 'No goals yet — add one below.' : isViewingFuture ? 'Plan ahead — add goals for this month.' : 'No goals were set for this month.'}
               </li>
             )}
           </ul>
 
-          {isViewingCur && (
+          {isEditable && (
             <div className="mt-4 flex gap-2">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addTask(); }}
-                placeholder="Add a goal for this month…"
+                placeholder={isViewingFuture ? `Plan a goal for ${MONTH_FULL[monthIdx]}…` : 'Add a goal for this month…'}
                 className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-700 dark:focus:border-slate-600"
               />
               <button
