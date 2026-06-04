@@ -6,6 +6,7 @@ import { useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from './ThemeProvider';
+import { IslamicThemeToggle } from './IslamicToggle';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -115,23 +116,19 @@ export function Navbar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/95">
-      <div className="mx-auto flex h-16 max-w-400 items-center justify-between px-4 sm:px-6 lg:px-16">
+    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-[#faf7f2]/70 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-950/75">
+      <div className="mx-auto flex h-20 max-w-400 items-center justify-between px-4 sm:px-6 lg:px-16">
 
         {/* Logo */}
-        <Link href="/" className="shrink-0 flex items-center gap-2 transition hover:opacity-80">
+        <Link href="/" className="shrink-0 flex items-center gap-1 transition hover:opacity-80">
           <div
-            className="h-10 w-14 shrink-0"
+            className="h-20 w-20 shrink-0"
             style={{
-              background: 'linear-gradient(150deg, #d4af6e 0%, #c9a020 50%, #8b6510 100%)',
-              WebkitMaskImage: 'url(/logo.png)',
-              WebkitMaskSize: 'contain',
-              WebkitMaskRepeat: 'no-repeat',
-              WebkitMaskPosition: 'center',
-              maskImage: 'url(/logo.png)',
-              maskSize: 'contain',
-              maskRepeat: 'no-repeat',
-              maskPosition: 'center',
+              backgroundImage: 'url(/logo.png)',
+              backgroundSize: '140%',
+              backgroundPosition: 'center 46%',
+              backgroundRepeat: 'no-repeat',
+              filter: 'brightness(1.15) saturate(1.25) contrast(1.05)',
             }}
           />
           <span className="hidden sm:inline-block text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">My Hifdh Journey</span>
@@ -153,11 +150,7 @@ export function Navbar() {
 
           <div className="mx-2 h-4 w-px bg-slate-200 dark:bg-slate-700" />
 
-          <button onClick={toggleTheme} aria-label="Toggle theme"
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <IslamicThemeToggle theme={theme} onToggle={toggleTheme} />
 
           <LanguageSwitcher current={i18n.language} onChange={changeLanguage} />
 
@@ -189,11 +182,7 @@ export function Navbar() {
         <div className="flex items-center gap-1.5 lg:hidden">
           <LanguageSwitcher current={i18n.language} onChange={changeLanguage} />
 
-          <button onClick={toggleTheme} aria-label="Toggle theme"
-            className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <IslamicThemeToggle theme={theme} onToggle={toggleTheme} />
 
           {user ? (
             <Link href="/profile"

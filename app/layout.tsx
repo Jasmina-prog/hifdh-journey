@@ -36,12 +36,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <body className="min-h-full bg-[#faf7f2] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <ThemeProvider>
           <Providers>
             <IslamicPattern />
             <Navbar />
-            <main className="flex min-h-[calc(100vh-5rem)] flex-col">{children}</main>
+            <main className="flex min-h-[calc(100vh-5.5rem)] flex-col">{children}</main>
           </Providers>
         </ThemeProvider>
       </body>

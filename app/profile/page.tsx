@@ -105,9 +105,9 @@ function StatCard({ value, label }: { value: number | string; label: string }) {
 function Divider() {
   return (
     <div className="flex items-center gap-4">
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
-      <span className="text-xs text-slate-300 dark:text-slate-700">✦</span>
-      <hr className="flex-1 border-slate-100 dark:border-slate-800/60" />
+      <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, transparent, #c9943a)' }} />
+      <span className="text-sm text-amber-500/70 dark:text-amber-400/60">✦</span>
+      <div className="h-px flex-1" style={{ background: 'linear-gradient(to left, transparent, #c9943a)' }} />
     </div>
   );
 }
