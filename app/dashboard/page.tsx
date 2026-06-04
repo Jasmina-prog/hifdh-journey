@@ -148,6 +148,13 @@ export default function DashboardPage() {
     } catch {}
 
     async function load() {
+      // Set userId immediately from cached session — no network wait
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+        try { localStorage.setItem('hifdh-last-user-id', session.user.id); } catch {}
+      }
+
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
       if (!user) return;
@@ -224,7 +231,17 @@ export default function DashboardPage() {
             transition={{ duration: 0.45 }}
           >
             <div className="mb-4 text-center">
-              <p dir="rtl" className="font-arabic text-5xl leading-20 text-emerald-700 dark:text-emerald-400">
+              <p
+                dir="rtl"
+                className="font-arabic text-5xl leading-20 select-none"
+                style={{
+                  background: 'linear-gradient(135deg, #f0d060 0%, #d4a820 30%, #c9943a 60%, #8b6510 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  filter: 'drop-shadow(0 2px 6px rgba(180,130,10,0.25))',
+                }}
+              >
                 السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
               </p>
             </div>
@@ -268,7 +285,7 @@ export default function DashboardPage() {
             className="grid gap-10 lg:grid-cols-2"
           >
             <LastSessionCard progressRows={progressRows} lastSession={lastSession} />
-            <div className="flex flex-col justify-between gap-4">
+            <div className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div>
                 <SectionLabel>{t('activity')}</SectionLabel>
                 <p className="-mt-3 mb-4 text-xl font-semibold text-slate-900 dark:text-slate-100">

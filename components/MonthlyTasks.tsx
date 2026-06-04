@@ -271,7 +271,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
       .single();
 
     if (error || !data) {
-      // Insert failed — roll back the optimistic task
+      console.error('monthly_tasks insert error:', error);
       setAllTasks((prev) => {
         const rolled = prev.filter((t) => t.id !== tempId);
         try { localStorage.setItem(cacheKey, JSON.stringify(rolled)); } catch {}

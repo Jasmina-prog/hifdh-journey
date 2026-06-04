@@ -131,12 +131,13 @@ export default function ProfilePage() {
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) { setLoading(false); return; }
+      if (!session?.user) { setLoading(false); return; }
 
+      const { user } = session;
       setUserId(user.id);
-      const meta = user.user_metadata ?? {};
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
 
+      // Set profile from cached session — zero network, instant render
       setProfile({
         fullName:     (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '',
         email:        user.email ?? '',
@@ -146,18 +147,16 @@ export default function ProfilePage() {
         method:       (meta.memorization_method as Method) || '',
         niyyah:       (meta.niyyah as string) || '',
       });
+      setLoading(false); // page renders now — stats update silently below
 
-      // Stats
       const [progressRes, journalRes] = await Promise.all([
         supabase.from('surah_progress').select('surah_number').eq('user_id', user.id).eq('status', 'memorized'),
         supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       ]);
       setStats({
-        memorized:     progressRes.data?.length ?? 0,
+        memorized:      progressRes.data?.length ?? 0,
         journalEntries: journalRes.count ?? 0,
       });
-
-      setLoading(false);
     }
     load();
   }, []);
@@ -175,16 +174,19 @@ export default function ProfilePage() {
   async function saveProfile(data: ProfileData) {
     setSaving(true);
     setSaved(false);
-    await supabase.auth.updateUser({
+    const { error } = await supabase.auth.updateUser({
       data: {
         full_name:            data.fullName.trim(),
         location:             data.location.trim(),
-        journey_start:        data.journeyStart,
+        journey_start:        data.journeyStart || null,
         ustadh:               data.ustadh.trim(),
         memorization_method:  data.method,
         niyyah:               data.niyyah.trim(),
       },
     });
+    if (error) { setSaving(false); return; }
+    // Refresh the local JWT so getSession() returns fresh metadata on next load
+    await supabase.auth.refreshSession();
     setSaving(false);
     setSaved(true);
     if (saveTimer.current) clearTimeout(saveTimer.current);

@@ -578,9 +578,9 @@ export default function JournalPage() {
   // ── Load from Supabase ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error: authErr }) => {
+    supabase.auth.getSession().then(({ data, error: authErr }) => {
       if (authErr) { setDbError(`Auth error: ${authErr.message}`); setLoading(false); return; }
-      const uid = data?.user?.id ?? null;
+      const uid = data?.session?.user?.id ?? null;
       setUserId(uid);
       if (!uid) { setDbError('Not signed in — please sign in first.'); setLoading(false); return; }
 

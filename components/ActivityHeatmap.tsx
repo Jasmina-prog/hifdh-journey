@@ -8,11 +8,11 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
 const LEVEL_CLASSES: Record<0 | 1 | 2 | 3 | 4, string> = {
-  0: 'bg-slate-100 dark:bg-slate-800/80',
-  1: 'bg-emerald-200 dark:bg-emerald-900/70',
-  2: 'bg-emerald-400 dark:bg-emerald-700',
-  3: 'bg-emerald-500 dark:bg-emerald-500',
-  4: 'bg-emerald-600 dark:bg-emerald-400',
+  0: 'bg-slate-200 dark:bg-slate-700',
+  1: 'bg-emerald-300 dark:bg-emerald-800',
+  2: 'bg-emerald-500 dark:bg-emerald-600',
+  3: 'bg-emerald-600 dark:bg-emerald-500',
+  4: 'bg-emerald-700 dark:bg-emerald-400',
 };
 
 function getLevel(count: number, isFuture: boolean): 0 | 1 | 2 | 3 | 4 {
