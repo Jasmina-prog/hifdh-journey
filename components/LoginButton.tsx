@@ -30,7 +30,7 @@ export function LoginButton() {
       disabled={loading}
       size="lg"
       className="gap-2 text-white border-0"
-      style={{ background: 'linear-gradient(135deg, #c9a020, #8b6510)' }}
+      style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}
     >
       {loading ? 'Redirecting...' : 'Sign in with Google'}
     </Button>

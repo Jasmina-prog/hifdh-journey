@@ -218,8 +218,14 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
         ))}
 
         {tasks.length === 0 && (
-          <li className="py-8 text-center text-base text-slate-300 dark:text-slate-700 select-none">
-            {t('noIntentionsYet')}
+          <li className="py-8 text-center select-none space-y-1">
+            <p className="text-base">✨</p>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Set your intention before you begin.
+            </p>
+            <p className="text-xs text-slate-300 dark:text-slate-600">
+              Small steps, taken with purpose, change everything.
+            </p>
           </li>
         )}
       </ul>
