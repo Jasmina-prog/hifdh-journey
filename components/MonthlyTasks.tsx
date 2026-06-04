@@ -43,8 +43,8 @@ function cellStyle(tasks: Task[], key: string) {
     if (done === 0)    return { bg: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200 dark:border-rose-800',   bar: 'bg-rose-400',   text: 'text-rose-500 dark:text-rose-500' };
     return { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800', bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-500' };
   }
-  // Future — very faint, no border emphasis
-  return { bg: 'bg-transparent', border: 'border-slate-100 dark:border-slate-800', bar: 'bg-transparent', text: 'text-slate-400 dark:text-slate-600' };
+  // Future — same border as ended months, content fades at bottom
+  return { bg: 'bg-transparent', border: 'border-slate-200 dark:border-slate-700', bar: 'bg-transparent', text: 'text-slate-400 dark:text-slate-600' };
 }
 
 // ─── Year Grid ────────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
                 ${style.bg}
                 ${selected ? `${style.border} shadow-md scale-[1.05]` : style.border}
                 ${'hover:scale-[1.03] hover:shadow-sm cursor-pointer'}
-                ${isFuture ? '[mask:linear-gradient(to_bottom,black_35%,transparent_100%)] opacity-60' : ''}
+                ${isFuture ? '[mask:linear-gradient(to_bottom,black_40%,transparent_100%)]' : ''}
               `}
             >
               <span className={`text-[11px] font-bold tracking-wide leading-none ${style.text}`}>{abbr}</span>
