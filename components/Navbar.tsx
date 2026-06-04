@@ -171,7 +171,8 @@ export function Navbar() {
             <button
               onClick={handleSignIn}
               disabled={signingIn}
-              className="ml-1 rounded-lg px-3.5 py-1.5 text-sm font-semibold bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="ml-1 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #c9a020, #8b6510)' }}
             >
               {signingIn ? 'Redirecting…' : 'Sign in'}
             </button>
@@ -196,7 +197,8 @@ export function Navbar() {
             <button
               onClick={handleSignIn}
               disabled={signingIn}
-              className="rounded-lg px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #c9a020, #8b6510)' }}
             >
               {signingIn ? '…' : 'Sign in'}
             </button>

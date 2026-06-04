@@ -29,7 +29,8 @@ export function LoginButton() {
       onClick={handleGoogleLogin}
       disabled={loading}
       size="lg"
-      className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+      className="gap-2 text-white border-0"
+      style={{ background: 'linear-gradient(135deg, #c9a020, #8b6510)' }}
     >
       {loading ? 'Redirecting...' : 'Sign in with Google'}
     </Button>

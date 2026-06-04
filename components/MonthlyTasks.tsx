@@ -398,8 +398,22 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
               />
             ))}
             {viewingTasks.length === 0 && (
-              <li className="py-8 text-center text-sm text-slate-300 dark:text-slate-700 select-none">
-                {isViewingCur ? 'No goals yet — add one below.' : isViewingFuture ? 'Plan ahead — add goals for this month.' : 'No goals were set for this month.'}
+              <li className="py-8 text-center select-none space-y-1">
+                <p className="text-base">🌙</p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  {isViewingCur
+                    ? 'Every great journey begins with one intention.'
+                    : isViewingFuture
+                    ? 'Plant your goals now — the future is waiting.'
+                    : 'No goals were recorded for this month.'}
+                </p>
+                <p className="text-xs text-slate-300 dark:text-slate-600">
+                  {isViewingCur
+                    ? 'What do you want to achieve this month?'
+                    : isViewingFuture
+                    ? 'Plan ahead and make it count.'
+                    : ''}
+                </p>
               </li>
             )}
           </ul>
