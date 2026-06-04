@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { IslamicPattern } from '@/components/IslamicPattern';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,7 +115,7 @@ function Divider() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '', email: '', location: '', journeyStart: '',
     ustadh: '', method: '', niyyah: '',
@@ -199,7 +198,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center">
         <p className="animate-pulse text-slate-400">Loading…</p>
       </div>
     );
@@ -207,7 +206,7 @@ export default function ProfilePage() {
 
   if (!profile.email) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-950">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <p className="text-slate-500">Please sign in to view your profile.</p>
         <Link href="/" className="rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-700">
           Go to Home
@@ -219,41 +218,48 @@ export default function ProfilePage() {
   const days = journeyDays(profile.journeyStart);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <IslamicPattern />
-
-      <div className="relative mx-auto w-full max-w-lg px-6 py-14">
+    <div className="relative min-h-screen overflow-x-hidden">
+      <div className="relative mx-auto w-full max-w-2xl px-6 py-8">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          className="space-y-8"
+          transition={{ duration: 0.4 }}
+          className="space-y-6"
         >
-          {/* ── Avatar + name ── */}
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-2xl font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+
+          {/* ── Header: avatar · name · status ── */}
+          <div className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/60">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700 ring-2 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-800">
               {initials(profile.fullName) || '?'}
             </div>
-            <div>
-              <p className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {profile.fullName || 'Your Name'}
               </p>
-              <p className="text-sm text-slate-400">{profile.email}</p>
+              <p className="truncate text-sm text-slate-400">{profile.email}</p>
             </div>
-            {/* Save indicator */}
-            <p className={`text-xs transition-opacity ${saving ? 'opacity-60' : saved ? 'text-emerald-600 opacity-100' : 'opacity-0'}`}>
-              {saving ? 'Saving…' : 'Saved'}
-            </p>
+            <span className={`shrink-0 text-xs transition-opacity ${saving ? 'text-slate-400 opacity-70' : saved ? 'text-emerald-600 opacity-100 dark:text-emerald-400' : 'opacity-0'}`}>
+              {saving ? 'Saving…' : '✓ Saved'}
+            </span>
+          </div>
+
+          {/* ── Stats row ── */}
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard value={stats.memorized} label="Surahs memorised" />
+            <StatCard value={stats.journalEntries} label="Journal entries" />
+            <StatCard value={days > 0 ? days : '—'} label="Days on journey" />
           </div>
 
           <Divider />
 
-          {/* ── Basic info ── */}
-          <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Basic Info
-            </p>
-            <div className="space-y-3">
+          {/* ── 2-column form grid ── */}
+          <div className="grid gap-6 md:grid-cols-2">
+
+            {/* Left column: Basic Info + Method */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
+                Basic Info
+              </p>
               <Field
                 label="Name"
                 value={profile.fullName}
@@ -266,17 +272,34 @@ export default function ProfilePage() {
                 placeholder="e.g. London, UK"
                 onChange={(v) => updateField('location', v)}
               />
+
+              <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
+                Memorisation Method
+              </p>
+              <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+                <div className="flex flex-wrap gap-2">
+                  {METHOD_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => updateField('method', opt.value)}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
+                        profile.method === opt.value
+                          ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
 
-          <Divider />
-
-          {/* ── Hifdh info ── */}
-          <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Your Hifdh
-            </p>
-            <div className="space-y-3">
+            {/* Right column: Hifdh + Niyyah */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
+                Your Hifdh
+              </p>
               <Field
                 label="Journey started"
                 value={profile.journeyStart}
@@ -289,61 +312,17 @@ export default function ProfilePage() {
                 placeholder="Optional"
                 onChange={(v) => updateField('ustadh', v)}
               />
-            </div>
 
-            {/* Method */}
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
-              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Memorisation Method
+              <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
+                Your Niyyah
               </p>
-              <div className="flex flex-wrap gap-2">
-                {METHOD_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateField('method', opt.value)}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all ${
-                      profile.method === opt.value
-                        ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* ── Niyyah ── */}
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Your Niyyah
-            </p>
-            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Why did you begin? Write it once — read it on hard days.
-            </p>
-            <Field
-              label="My intention"
-              value={profile.niyyah}
-              placeholder="I began this journey because…"
-              onChange={(v) => updateField('niyyah', v)}
-              multiline
-            />
-          </div>
-
-          <Divider />
-
-          {/* ── Stats ── */}
-          <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Your Journey
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              <StatCard value={stats.memorized} label="Surahs memorised" />
-              <StatCard value={stats.journalEntries} label="Journal entries" />
-              <StatCard value={days > 0 ? days : '—'} label="Days on this journey" />
+              <Field
+                label="Why I began"
+                value={profile.niyyah}
+                placeholder="I began this journey because…"
+                onChange={(v) => updateField('niyyah', v)}
+                multiline
+              />
             </div>
           </div>
 
@@ -352,10 +331,11 @@ export default function ProfilePage() {
           {/* ── Sign out ── */}
           <button
             onClick={signOut}
-            className="w-full rounded-2xl border border-red-200 px-4 py-3 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/20"
+            className="w-full rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/20"
           >
             Sign Out
           </button>
+
         </motion.div>
       </div>
     </div>

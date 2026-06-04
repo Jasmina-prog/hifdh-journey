@@ -4,7 +4,7 @@ import { LoginButton } from '@/components/LoginButton';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen">
       <main className="mx-auto w-full max-w-7xl px-6 py-16 lg:px-10">
         <section className="grid gap-10 lg:grid-cols-[1.4fr_0.9fr] lg:items-start">
           <div className="space-y-8">

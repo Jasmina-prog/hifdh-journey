@@ -2,53 +2,52 @@
 
 import { motion } from 'framer-motion';
 
+// Two authentic Arabic eghra (arabesque) ornaments from Wikimedia Commons.
+// Both use a warm linear gradient: pale gold → vivid gold → deep amber.
+// Transparent backgrounds — no bounding rects, no filters causing dark areas.
+
 export function IslamicPattern() {
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden">
-      {/* Top-right geometric star */}
-      <motion.svg
-        initial={{ opacity: 0, rotate: -30 }}
-        animate={{ opacity: 0.07, rotate: 0 }}
-        transition={{ duration: 3, ease: 'easeOut' }}
-        viewBox="0 0 200 200"
-        className="absolute -top-16 -right-16 h-80 w-80 text-emerald-600 dark:text-emerald-400"
-        fill="currentColor"
-      >
-        <polygon points="100,10 120,80 190,80 135,125 155,195 100,155 45,195 65,125 10,80 80,80" />
-      </motion.svg>
 
-      {/* Bottom-left crescent */}
-      <motion.svg
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 0.06, x: 0 }}
-        transition={{ duration: 2.5, delay: 0.5 }}
-        viewBox="0 0 100 100"
-        className="absolute -bottom-12 -left-12 h-64 w-64 text-teal-600 dark:text-teal-400"
-        fill="currentColor"
-      >
-        <path d="M50 5 A45 45 0 1 0 50 95 A30 30 0 1 1 50 5 Z" />
-      </motion.svg>
-
-      {/* Center-right subtle grid */}
-      <motion.svg
+      {/* ── Top-right · primary · slow clockwise ─────────── */}
+      <motion.div
+        className="absolute"
+        style={{ top: -80, right: -80, width: 720, height: 720 }}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.03 }}
-        transition={{ duration: 3, delay: 1 }}
-        viewBox="0 0 400 400"
-        className="absolute top-1/3 right-0 h-96 w-96 text-amber-600 dark:text-amber-400"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
+        animate={{ opacity: 0.14 }}
+        transition={{ duration: 3, ease: 'easeOut' }}
       >
-        {[0, 1, 2, 3].map((i) =>
-          [0, 1, 2, 3].map((j) => (
-            <polygon
-              key={`${i}-${j}`}
-              points={`${i * 100 + 50},${j * 100 + 10} ${i * 100 + 90},${j * 100 + 50} ${i * 100 + 50},${j * 100 + 90} ${i * 100 + 10},${j * 100 + 50}`}
-            />
-          ))
-        )}
-      </motion.svg>
+        <motion.img
+          src="/patterns/eghra-gold.svg"
+          alt=""
+          animate={{ rotate: 360 }}
+          transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+          style={{ width: '100%', height: '100%' }}
+          draggable={false}
+          className="select-none"
+        />
+      </motion.div>
+
+      {/* ── Bottom-left · secondary · slow counter-clockwise ─ */}
+      <motion.div
+        className="absolute"
+        style={{ bottom: -50, left: -50, width: 420, height: 420 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.10 }}
+        transition={{ duration: 3, delay: 0.5, ease: 'easeOut' }}
+      >
+        <motion.img
+          src="/patterns/eghra2.svg"
+          alt=""
+          animate={{ rotate: -360 }}
+          transition={{ duration: 100, repeat: Infinity, ease: 'linear' }}
+          style={{ width: '100%', height: '100%' }}
+          draggable={false}
+          className="select-none"
+        />
+      </motion.div>
+
     </div>
   );
 }

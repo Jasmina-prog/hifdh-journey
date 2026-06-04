@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { IslamicPattern } from '@/components/IslamicPattern';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -753,9 +752,7 @@ export default function JournalPage() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <IslamicPattern />
-
+    <div className="relative min-h-screen overflow-x-hidden">
       <div className="relative mx-auto w-full max-w-400 px-6 py-10 lg:px-16 lg:py-14">
 
         {/* ── Error banner ── */}

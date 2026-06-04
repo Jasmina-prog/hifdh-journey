@@ -4,6 +4,7 @@ import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { IslamicPattern } from '@/components/IslamicPattern';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <ThemeProvider>
           <Providers>
+            <IslamicPattern />
             <Navbar />
             <main className="flex min-h-[calc(100vh-5rem)] flex-col">{children}</main>
           </Providers>

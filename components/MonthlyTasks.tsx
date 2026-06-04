@@ -43,8 +43,8 @@ function cellStyle(tasks: Task[], key: string) {
     if (done === 0)    return { bg: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200 dark:border-rose-800',   bar: 'bg-rose-400',   text: 'text-rose-500 dark:text-rose-500' };
     return { bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800', bar: 'bg-amber-400', text: 'text-amber-600 dark:text-amber-500' };
   }
-  // Future — dashed border only, no background fill
-  return { bg: 'bg-transparent', border: 'border-dashed border-slate-300 dark:border-slate-600', bar: 'bg-transparent', text: 'text-slate-300 dark:text-slate-600' };
+  // Future — very faint, no border emphasis
+  return { bg: 'bg-transparent', border: 'border-slate-100 dark:border-slate-800', bar: 'bg-transparent', text: 'text-slate-400 dark:text-slate-600' };
 }
 
 // ─── Year Grid ────────────────────────────────────────────────────────────────
@@ -78,8 +78,9 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
           const done   = tasks.filter((t) => t.completed).length;
           const total  = tasks.length;
           const pct    = total > 0 ? (done / total) * 100 : 0;
-          const style  = cellStyle(tasks, key);
+          const style    = cellStyle(tasks, key);
           const selected = viewing === key;
+          const isFuture = !isPast(key) && !isCurrent(key);
 
           return (
             <button
@@ -88,8 +89,9 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
               onClick={() => onSelect(key)}
               className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-1 py-2.5 text-center transition-all
                 ${style.bg}
-                ${selected ? 'border-slate-800 dark:border-slate-200 shadow-md scale-[1.05]' : style.border}
+                ${selected ? `${style.border} shadow-md scale-[1.05]` : style.border}
                 ${'hover:scale-[1.03] hover:shadow-sm cursor-pointer'}
+                ${isFuture ? '[mask:linear-gradient(to_bottom,black_35%,transparent_100%)] opacity-60' : ''}
               `}
             >
               <span className={`text-[11px] font-bold tracking-wide leading-none ${style.text}`}>{abbr}</span>

@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { IslamicPattern } from '@/components/IslamicPattern';
 import { ProgressRing } from '@/components/ProgressRing';
 import { DuaCard } from '@/components/DuaCard';
 import { HadithCard } from '@/components/HadithCard';
@@ -214,9 +213,7 @@ export default function DashboardPage() {
   const dateString = showHijri ? formatHijri(today) : formatGregorian(today);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <IslamicPattern />
-
+    <div className="relative min-h-screen overflow-x-hidden">
       <div className="relative mx-auto w-full max-w-400 px-6 py-10 lg:px-16 lg:py-14">
         <div className="space-y-12">
 
