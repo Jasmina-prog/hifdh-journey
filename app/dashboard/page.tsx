@@ -27,7 +27,7 @@ function formatGregorian(d: Date) {
 
 function formatHijri(d: Date) {
   try {
-    return new Intl.DateTimeFormat('en-u-ca-islamic', {
+    return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
       day: 'numeric', month: 'long', year: 'numeric',
     }).format(d);
   } catch { return ''; }

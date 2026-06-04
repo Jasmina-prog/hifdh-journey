@@ -8,7 +8,7 @@ type ProgressRow = {
 
 function toHijriDay(date: Date): string {
   try {
-    return new Intl.DateTimeFormat('en-u-ca-islamic', { day: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric' }).format(date);
   } catch {
     return String(date.getDate());
   }
@@ -17,7 +17,7 @@ function toHijriDay(date: Date): string {
 function monthHeader(year: number, month: number, hijri: boolean): string {
   const mid = new Date(year, month, 15);
   try {
-    if (hijri) return new Intl.DateTimeFormat('en-u-ca-islamic', { month: 'long', year: 'numeric' }).format(mid);
+    if (hijri) return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { month: 'long', year: 'numeric' }).format(mid);
   } catch {}
   return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(mid);
 }
