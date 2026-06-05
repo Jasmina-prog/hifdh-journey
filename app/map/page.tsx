@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
 
@@ -123,7 +124,13 @@ export default function MapPage() {
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [filter, setFilter] = useState<'all' | Status>('all');
   const [view, setView] = useState<'grid' | 'juz'>('grid');
-  const [selectedSurah, setSelectedSurah] = useState<number | null>(null);
+  const [selectedSurah, setSelectedSurah] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const param = new URLSearchParams(window.location.search).get('surah');
+      return param ? parseInt(param, 10) : null;
+    }
+    return null;
+  });
   const [panelNotes, setPanelNotes] = useState('');
   const [panelStatus, setPanelStatus] = useState<Status>('not_started');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -545,6 +552,16 @@ function SidePanel({
   onMarkLastRead: () => void;
 }) {
   const cfg = STATUS_CONFIG[panelStatus];
+
+  const [reflections, setReflections] = useState<{ id: string; content: string; tag: string; created_at: string }[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    setReflections([]);
+    supabase.from('journal_entries').select('id,content,tag,created_at').eq('user_id', userId).eq('surah_number', surah.number)
+      .order('created_at', { ascending: false }).limit(3)
+      .then(({ data }) => setReflections((data ?? []) as typeof reflections));
+  }, [surah.number, userId]);
+
   return (
     <div className="px-5 pb-8 pt-4 sm:px-6 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:dark:border-slate-800 lg:dark:bg-slate-900 lg:pt-6 lg:pb-6">
       {/* Header row */}
@@ -615,7 +632,7 @@ function SidePanel({
       <hr className="my-4 border-slate-100 dark:border-slate-800" />
 
       {/* Notes */}
-      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('notesLabel')}</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">Quick Notes</p>
       <textarea
         value={panelNotes}
         onChange={(e) => onNotesChange(e.target.value)}
@@ -663,6 +680,33 @@ function SidePanel({
       >
         {t('openInQuranCom')}
       </a>
+
+      {/* Reflections from Journal */}
+      <hr className="my-4 border-slate-100 dark:border-slate-800" />
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Reflections</p>
+        <Link href="/journal" className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 transition">
+          View all →
+        </Link>
+      </div>
+      {reflections.length === 0 ? (
+        <p className="text-xs italic text-slate-300 dark:text-slate-700">
+          {userId ? 'No journal entries for this surah yet.' : 'Sign in to see reflections.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {reflections.map((r) => (
+            <Link key={r.id} href={`/journal?entry=${r.id}`}
+              className="block rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-slate-200 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700">
+              <p className="line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{r.content}</p>
+              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-600">
+                {r.created_at ? new Date(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(r.created_at) ? r.created_at : r.created_at + 'Z').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                <span className="ml-1.5 capitalize opacity-70">· {r.tag}</span>
+              </p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
