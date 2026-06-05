@@ -249,8 +249,14 @@ export default function DashboardPage() {
               {t('greeting')}{userName ? `, ${userName}` : ''}
             </p>
             <div className="mt-2 flex flex-wrap items-end gap-4">
-              <h1 className="text-5xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-6xl">
-                {dateString || formatGregorian(today)}
+              <h1 className="relative text-5xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-6xl">
+                {/* Both dates rendered — invisible one holds the width so layout never shifts */}
+                <span aria-hidden className="invisible select-none block">
+                  {showHijri ? formatGregorian(today) : formatHijri(today)}
+                </span>
+                <span className="absolute inset-0">
+                  {dateString || formatGregorian(today)}
+                </span>
               </h1>
               <Switch
                 on={showHijri}
