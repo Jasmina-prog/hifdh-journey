@@ -105,7 +105,9 @@ function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
 
 export default function DashboardPage() {
   const { t } = useTranslation('common');
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState(() => {
+    try { return localStorage.getItem('hifdh-last-user-name') ?? ''; } catch { return ''; }
+  });
   const [userId, setUserId] = useState<string | null>(() => {
     try { return localStorage.getItem('hifdh-last-user-id'); } catch { return null; }
   });
@@ -147,12 +149,26 @@ export default function DashboardPage() {
       }
     } catch {}
 
+    function extractName(user: { user_metadata?: Record<string, unknown>; email?: string }) {
+      return (
+        (user.user_metadata?.full_name as string) ||
+        (user.user_metadata?.name as string) ||
+        user.email?.split('@')[0].replace(/[._\-]+/g, ' ') ||
+        ''
+      );
+    }
+
     async function load() {
-      // Set userId immediately from cached session — no network wait
+      // getSession() reads from local storage — no network round-trip
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setUserId(session.user.id);
         try { localStorage.setItem('hifdh-last-user-id', session.user.id); } catch {}
+        const name = extractName(session.user);
+        if (name) {
+          setUserName(name);
+          try { localStorage.setItem('hifdh-last-user-name', name); } catch {}
+        }
       }
 
       const { data: authData } = await supabase.auth.getUser();
@@ -165,12 +181,9 @@ export default function DashboardPage() {
         const session = JSON.parse(localStorage.getItem(`hifdh-last-session-${user.id}`) || 'null');
         if (session) setLastSession(session);
       } catch {}
-      setUserName(
-        (user.user_metadata?.full_name as string) ||
-        (user.user_metadata?.name as string) ||
-        user.email?.split('@')[0].replace(/[._\-]+/g, ' ') ||
-        ''
-      );
+      const name = extractName(user);
+      setUserName(name);
+      try { if (name) localStorage.setItem('hifdh-last-user-name', name); } catch {}
 
       const { data: progressData } = await supabase
         .from('surah_progress')

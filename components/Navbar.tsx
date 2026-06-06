@@ -121,15 +121,11 @@ export function Navbar() {
 
         {/* Logo */}
         <Link href="/" className="shrink-0 flex items-center gap-1 transition hover:opacity-80">
-          <div
-            className="h-20 w-20 shrink-0"
-            style={{
-              backgroundImage: 'url(/logo.png)',
-              backgroundSize: '165%',
-              backgroundPosition: 'center 46%',
-              backgroundRepeat: 'no-repeat',
-              filter: 'brightness(1.15) saturate(1.25) contrast(1.05)',
-            }}
+          <img
+            src="/logo.png"
+            alt="Hifdh Journey"
+            className="h-35 w-auto shrink-0"
+            style={{ filter: 'brightness(1.15) saturate(1.25) contrast(1.05)' }}
           />
           {/* <span className="hidden sm:inline-block text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">My Hifdh Journey</span> */}
         </Link>

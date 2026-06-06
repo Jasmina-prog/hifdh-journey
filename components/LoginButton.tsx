@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 
-export function LoginButton() {
+export function LoginButton({ dark }: { dark?: boolean }) {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
@@ -29,7 +29,7 @@ export function LoginButton() {
       onClick={handleGoogleLogin}
       disabled={loading}
       size="lg"
-      className="gap-2 text-white border-0"
+      className={`gap-2 border-0 ${dark ? 'text-slate-950' : 'text-white'}`}
       style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}
     >
       {loading ? 'Redirecting...' : 'Sign in with Google'}

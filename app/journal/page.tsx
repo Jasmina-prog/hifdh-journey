@@ -899,7 +899,7 @@ function JournalInner() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen overflow-x-hidden">
       <div className="mx-auto w-full max-w-400 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
 
         {dbError && (
