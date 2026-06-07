@@ -66,7 +66,7 @@ const TYPES = [
   },
 ];
 
-type Status = 'idle' | 'sending' | 'done';
+type Status = 'idle' | 'sending' | 'done' | 'error';
 
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false);
@@ -93,6 +93,8 @@ export function FeedbackWidget() {
     setTimeout(() => { setMessage(''); setType('idea'); setStatus('idle'); }, 300);
   };
 
+  const retry = () => setStatus('idle');
+
   const switchType = (id: string) => {
     setType(id);
     // Keep textarea active — restore focus after React re-render
@@ -111,17 +113,19 @@ export function FeedbackWidget() {
         user?.user_metadata?.name ??
         user?.user_metadata?.display_name ??
         null;
-      await supabase.from('feedback').insert({
+      const { error } = await supabase.from('feedback').insert({
         type,
         message: message.trim(),
         user_id: user?.id ?? null,
         email: user?.email ?? null,
         name,
       });
+      if (error) throw error;
+      setStatus('done');
     } catch (e) {
       console.error('Feedback submit:', e);
+      setStatus('error');
     }
-    setStatus('done');
   };
 
   return (
@@ -154,7 +158,42 @@ export function FeedbackWidget() {
             </div>
 
             <AnimatePresence mode="wait">
-              {status === 'done' ? (
+              {status === 'error' ? (
+                /* ── Error ────────────────────────────────────────────── */
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col items-center gap-4 px-6 py-12 text-center"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-7 w-7 text-red-500">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-slate-900 dark:text-white">Something went wrong</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Your feedback wasn't saved. Please try again.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={retry}
+                      className="rounded-xl px-5 py-2 text-sm font-semibold text-slate-950 shadow-md transition hover:opacity-90"
+                      style={{ background: gold }}
+                    >
+                      Try again
+                    </button>
+                    <button
+                      onClick={close}
+                      className="rounded-xl border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </motion.div>
+              ) : status === 'done' ? (
                 /* ── Success ──────────────────────────────────────────── */
                 <motion.div
                   key="done"
