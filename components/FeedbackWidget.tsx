@@ -139,7 +139,7 @@ export function FeedbackWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-            className="w-85 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:w-95"
+            className="w-104 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:w-112"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
@@ -235,7 +235,7 @@ export function FeedbackWidget() {
                   className="space-y-4 px-5 py-5"
                 >
                   {/* Type chips */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex gap-2">
                     {TYPES.map((t) => (
                       <button
                         key={t.id}
