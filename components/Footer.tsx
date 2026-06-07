@@ -16,11 +16,11 @@ function Divider() {
 export function Footer() {
   return (
     <footer className="w-full">
-      <div className="mx-auto w-full max-w-400 px-6 lg:px-16">
+      <div className="mx-auto w-full max-w-7xl px-6 lg:px-16">
         <Divider />
       </div>
 
-      <div className="mx-auto w-full max-w-400 px-6 py-14 lg:px-16">
+      <div className="mx-auto w-full max-w-7xl px-6 py-14 lg:px-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -88,37 +88,24 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Contact & Links */}
+          {/* Pages */}
           <div>
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Contact</h3>
-            <ul className="mt-4 space-y-3">
-              <li>
-                <a
-                  href="mailto:zokirdev@gmail.com"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors hover:underline underline-offset-2"
-                >
-                  zokirdev@gmail.com
-                </a>
-              </li>
-              <li className="pt-2">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Pages</p>
-                <ul className="space-y-2">
-                  {[
-                    { href: '/dashboard', label: 'Dashboard' },
-                    { href: '/map', label: 'Mushaf Map' },
-                    { href: '/journal', label: 'Journal' },
-                  ].map((l) => (
-                    <li key={l.href}>
-                      <Link
-                        href={l.href}
-                        className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors hover:underline underline-offset-2"
-                      >
-                        {l.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </li>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Pages</h3>
+            <ul className="mt-4 space-y-2">
+              {[
+                { href: '/dashboard', label: 'Dashboard' },
+                { href: '/map', label: 'Mushaf Map' },
+                { href: '/journal', label: 'Journal' },
+              ].map((l) => (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors hover:underline underline-offset-2"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

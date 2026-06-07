@@ -3,6 +3,7 @@ import { Inter, Amiri } from 'next/font/google';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { FeedbackWidget } from '@/components/FeedbackWidget';
 import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { IslamicPattern } from '@/components/IslamicPattern';
@@ -44,6 +45,7 @@ export default function RootLayout({
             <Navbar />
             <main className="flex min-h-[calc(100vh-5.5rem)] flex-col">{children}</main>
             <Footer />
+            <FeedbackWidget />
           </Providers>
         </ThemeProvider>
       </body>
