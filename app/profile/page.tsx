@@ -194,8 +194,15 @@ export default function ProfilePage() {
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    // Cancel any pending auto-save before signing out to avoid a refreshSession
+    // race that could restore the session immediately after signOut.
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    if (error) {
+      console.error('Sign out error:', error);
+      return;
+    }
+    window.location.replace('/');
   }
 
   if (loading) {
@@ -332,6 +339,7 @@ export default function ProfilePage() {
 
           {/* ── Sign out ── */}
           <button
+            type="button"
             onClick={signOut}
             className="w-full rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/20"
           >
