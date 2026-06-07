@@ -4,12 +4,18 @@
 // CREATE TABLE feedback (
 //   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
 //   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+//   email text,
+//   name text,
 //   type text,
 //   message text NOT NULL,
 //   created_at timestamptz DEFAULT now()
 // );
 // ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
 // CREATE POLICY "Anyone can submit feedback" ON feedback FOR INSERT TO public WITH CHECK (true);
+//
+// If the table already exists, add the new columns:
+// ALTER TABLE feedback ADD COLUMN IF NOT EXISTS email text;
+// ALTER TABLE feedback ADD COLUMN IF NOT EXISTS name text;
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -99,10 +105,18 @@ export function FeedbackWidget() {
     try {
       // getSession() reads from local storage — no network round-trip
       const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      const name =
+        user?.user_metadata?.full_name ??
+        user?.user_metadata?.name ??
+        user?.user_metadata?.display_name ??
+        null;
       await supabase.from('feedback').insert({
         type,
         message: message.trim(),
-        user_id: session?.user?.id ?? null,
+        user_id: user?.id ?? null,
+        email: user?.email ?? null,
+        name,
       });
     } catch (e) {
       console.error('Feedback submit:', e);
