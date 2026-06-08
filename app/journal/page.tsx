@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 
@@ -38,13 +39,18 @@ type JournalEntry = {
 type VocabWord = { id: string; word: string; root: string; meaning: string; found_in: string; created_at: string };
 type Milestone = { id: string; text: string; emoji: string; type: 'auto' | 'manual'; created_at: string };
 
-// ─── Tag config ───────────────────────────────────────────────────────────────
+// ─── Tag config (labelKey references i18n keys) ────────────────────────────────
 
-const TAG_CONFIG: Record<Tag, { label: string; pill: string; leftBorder: string; activePill: string }> = {
-  tadabbur:    { label:'Tadabbur',    pill:'border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-500', leftBorder:'border-l-emerald-400 dark:border-l-emerald-600',  activePill:'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300' },
-  milestone:   { label:'Milestone',   pill:'border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:text-slate-500',   leftBorder:'border-l-amber-400 dark:border-l-amber-600',     activePill:'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300' },
-  struggle:    { label:'Struggle',    pill:'border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-700 dark:border-slate-700 dark:text-slate-500',     leftBorder:'border-l-rose-400 dark:border-l-rose-600',       activePill:'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-600 dark:bg-rose-950/40 dark:text-rose-300' },
-  breakthrough:{ label:'Breakthrough',pill:'border-slate-200 text-slate-500 hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:text-slate-500',      leftBorder:'border-l-sky-400 dark:border-l-sky-600',         activePill:'border-sky-400 bg-sky-50 text-sky-700 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-300' },
+const TAG_CONFIG: Record<Tag, { labelKey: string; pill: string; leftBorder: string; activePill: string }> = {
+  tadabbur:    { labelKey:'tagTadabbur',    pill:'border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-500', leftBorder:'border-l-emerald-400 dark:border-l-emerald-600',  activePill:'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300' },
+  milestone:   { labelKey:'tagMilestone',   pill:'border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-700 dark:border-slate-700 dark:text-slate-500',   leftBorder:'border-l-amber-400 dark:border-l-amber-600',     activePill:'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300' },
+  struggle:    { labelKey:'tagStruggle',    pill:'border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-700 dark:border-slate-700 dark:text-slate-500',     leftBorder:'border-l-rose-400 dark:border-l-rose-600',       activePill:'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-600 dark:bg-rose-950/40 dark:text-rose-300' },
+  breakthrough:{ labelKey:'tagBreakthrough',pill:'border-slate-200 text-slate-500 hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:text-slate-500',      leftBorder:'border-l-sky-400 dark:border-l-sky-600',         activePill:'border-sky-400 bg-sky-50 text-sky-700 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-300' },
+};
+
+// English labels for PDF export (always in English regardless of UI language)
+const TAG_LABELS_EN: Record<Tag, string> = {
+  tadabbur: 'Tadabbur', milestone: 'Milestone', struggle: 'Struggle', breakthrough: 'Breakthrough',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,16 +72,16 @@ function normalizeISO(iso: string): Date {
   return new Date(normalized);
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, t: (k: string) => string) {
   const d = normalizeISO(iso);
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.round((todayMidnight.getTime() - dMidnight.getTime()) / 86400000);
-  if (diff <= 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  if (diff < 7) return `${diff} days ago`;
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+  if (diff <= 0) return t('today');
+  if (diff === 1) return t('yesterday');
+  if (diff < 7) return `${diff} ${t('daysAgo')}`;
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
 }
 
 function isSameDayPastYear(iso: string): boolean {
@@ -89,7 +95,7 @@ function thisWeekCount(entries: JournalEntry[]): number {
   return entries.filter((e) => normalizeISO(e.created_at).getTime() > cutoff).length;
 }
 
-// ─── PDF Export ───────────────────────────────────────────────────────────────
+// ─── PDF Export (always English) ──────────────────────────────────────────────
 
 function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Milestone[]) {
   function esc(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>'); }
@@ -99,7 +105,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
   const entryRows = entries.length === 0 ? '<p class="empty">No reflections yet.</p>' : entries.map((e) => `
     <div class="item">
       <div class="item-meta">
-        <span class="tag" style="color:${tagColors[e.tag]};border-color:${tagColors[e.tag]}">${TAG_CONFIG[e.tag].label}</span>
+        <span class="tag" style="color:${tagColors[e.tag]};border-color:${tagColors[e.tag]}">${TAG_LABELS_EN[e.tag]}</span>
         ${e.surah_number ? `<span class="ref">${surahLabel(e.surah_number)}${e.ayah_number ? ` · Ayah ${e.ayah_number}` : ''}</span>` : ''}
         ${e.pinned ? '<span class="pinned">📌</span>' : ''}
         <span class="date">${normalizeISO(e.created_at).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
@@ -168,7 +174,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
   win.addEventListener('load', () => { win.print(); URL.revokeObjectURL(url); });
 }
 
-// ─── Gold column divider (vertical, with ✦ star) ──────────────────────────────
+// ─── Gold column divider ──────────────────────────────────────────────────────
 
 function GoldDivider({ className = '' }: { className?: string }) {
   return (
@@ -180,7 +186,7 @@ function GoldDivider({ className = '' }: { className?: string }) {
   );
 }
 
-// ─── Custom Select (emoji / small option lists) ───────────────────────────────
+// ─── Custom Select ────────────────────────────────────────────────────────────
 
 function CustomSelect<T extends string>({ value, onChange, options, className = '' }: {
   value: T;
@@ -236,9 +242,10 @@ function CustomSelect<T extends string>({ value, onChange, options, className = 
   );
 }
 
-// ─── Surah Select (searchable, 114 options) ───────────────────────────────────
+// ─── Surah Select ─────────────────────────────────────────────────────────────
 
 function SurahSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -272,7 +279,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
         className="w-full flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800"
       >
         <span className={displayLabel ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}>
-          {displayLabel ?? 'Surah (optional)'}
+          {displayLabel ?? t('surahOptional')}
         </span>
         <svg className={`h-3 w-3 shrink-0 ml-2 text-slate-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -292,7 +299,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search surah…"
+                placeholder={t('searchSurah')}
                 className="w-full rounded-lg bg-slate-50 px-3 py-1.5 text-sm outline-none placeholder:text-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
@@ -303,7 +310,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
                   onMouseDown={() => { onChange(''); setOpen(false); }}
                   className="w-full px-3 py-1.5 text-left text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
-                  Clear
+                  {t('clearSelection')}
                 </button>
               )}
               {filtered.map(({ name, num }) => (
@@ -321,7 +328,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
                 </button>
               ))}
               {filtered.length === 0 && (
-                <p className="px-3 py-4 text-center text-xs text-slate-400">No surah found</p>
+                <p className="px-3 py-4 text-center text-xs text-slate-400">{t('noSurahFound')}</p>
               )}
             </div>
           </motion.div>
@@ -334,6 +341,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
 // ─── Compact Entry Card ───────────────────────────────────────────────────────
 
 function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: () => void }) {
+  const { t } = useTranslation('common');
   const cfg = TAG_CONFIG[entry.tag];
   return (
     <button
@@ -341,7 +349,7 @@ function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: ()
       className={`group w-full text-left rounded-xl border border-slate-100 border-l-4 ${cfg.leftBorder} bg-white px-3.5 py-2.5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80`}
     >
       <div className="flex items-center gap-2 mb-1.5">
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{cfg.label}</span>
+        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{t(cfg.labelKey)}</span>
         {entry.surah_number && (
           <Link
             href={`/map?surah=${entry.surah_number}`}
@@ -352,7 +360,7 @@ function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: ()
           </Link>
         )}
         {entry.pinned && <span className="text-[10px] text-amber-500">📌</span>}
-        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(entry.created_at)}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(entry.created_at, t)}</span>
       </div>
       <p className="line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{entry.content}</p>
     </button>
@@ -362,6 +370,7 @@ function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: ()
 // ─── Compact Vocab Card ───────────────────────────────────────────────────────
 
 function VocabCard({ word, onClick }: { word: VocabWord; onClick: () => void }) {
+  const { t } = useTranslation('common');
   return (
     <button
       type="button" onClick={onClick}
@@ -371,7 +380,7 @@ function VocabCard({ word, onClick }: { word: VocabWord; onClick: () => void }) 
         {word.found_in && (
           <span className="truncate text-xs text-slate-400 dark:text-slate-500">{word.found_in}</span>
         )}
-        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(word.created_at)}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(word.created_at, t)}</span>
       </div>
       <div className="flex items-baseline gap-2">
         <p dir="rtl" className="font-arabic text-lg leading-tight text-slate-900 dark:text-slate-100 shrink-0">{word.word}</p>
@@ -384,15 +393,16 @@ function VocabCard({ word, onClick }: { word: VocabWord; onClick: () => void }) 
 // ─── Compact Milestone Card ───────────────────────────────────────────────────
 
 function MilestoneCard({ milestone, onClick }: { milestone: Milestone; onClick: () => void }) {
+  const { t } = useTranslation('common');
   return (
     <button
       type="button" onClick={onClick}
       className="group w-full text-left rounded-xl border border-slate-100 bg-white px-3.5 py-2.5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
     >
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">{formatDate(milestone.created_at)}</span>
+        <span className="text-[11px] text-slate-400 dark:text-slate-500">{formatDate(milestone.created_at, t)}</span>
         {milestone.type === 'auto' && (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">auto</span>
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('autoLabel')}</span>
         )}
       </div>
       <div className="flex items-start gap-2">
@@ -412,6 +422,7 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
   onDelete: (id: string) => void;
   onEdit: (id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surah_number' | 'ayah_number'>) => Promise<void>;
 }) {
+  const { t } = useTranslation('common');
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
   const [editTag, setEditTag] = useState<Tag>(entry.tag);
@@ -439,17 +450,17 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{cfg.label}</span>
+            <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{t(cfg.labelKey)}</span>
             {entry.surah_number && (
               <Link href={`/map?surah=${entry.surah_number}`} onClick={onClose}
                 className="text-sm font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400 transition-colors">
-                {surahLabel(entry.surah_number)}{entry.ayah_number ? ` · Ayah ${entry.ayah_number}` : ''}
+                {surahLabel(entry.surah_number)}{entry.ayah_number ? ` · ${t('ayahs').slice(0, -1)} ${entry.ayah_number}` : ''}
               </Link>
             )}
-            {entry.pinned && <span className="text-xs text-amber-500">📌 Pinned</span>}
+            {entry.pinned && <span className="text-xs text-amber-500">📌 {t('pinnedLabel')}</span>}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(entry.created_at)}</span>
+            <span className="text-xs text-slate-400">{formatDate(entry.created_at, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -463,18 +474,18 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
             <div className="space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <input list="surah-edit-detail" value={editSurah} onChange={(e) => setEditSurah(e.target.value)} placeholder="Surah (optional)"
+                  <input list="surah-edit-detail" value={editSurah} onChange={(e) => setEditSurah(e.target.value)} placeholder={t('surahOptional')}
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                   <datalist id="surah-edit-detail">{SURAH_NAMES.map((name, i) => <option key={i} value={name} />)}</datalist>
                 </div>
-                <input type="number" min={1} value={editAyah} onChange={(e) => setEditAyah(e.target.value)} placeholder="Ayah #"
+                <input type="number" min={1} value={editAyah} onChange={(e) => setEditAyah(e.target.value)} placeholder={t('ayahNum')}
                   className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
               </div>
               <div className="flex flex-wrap gap-2">
-                {(Object.keys(TAG_CONFIG) as Tag[]).map((t) => (
-                  <button key={t} type="button" onClick={() => setEditTag(t)}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${editTag === t ? TAG_CONFIG[t].activePill : TAG_CONFIG[t].pill}`}>
-                    {TAG_CONFIG[t].label}
+                {(Object.keys(TAG_CONFIG) as Tag[]).map((tag) => (
+                  <button key={tag} type="button" onClick={() => setEditTag(tag)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${editTag === tag ? TAG_CONFIG[tag].activePill : TAG_CONFIG[tag].pill}`}>
+                    {t(TAG_CONFIG[tag].labelKey)}
                   </button>
                 ))}
               </div>
@@ -493,21 +504,21 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
               <svg className="h-3.5 w-3.5" fill={entry.pinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
-              {entry.pinned ? 'Unpin' : 'Pin'}
+              {entry.pinned ? t('unpin') : t('pin')}
             </button>
             {!editing && (
-              <button type="button" onClick={() => setEditing(true)} className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition">Edit</button>
+              <button type="button" onClick={() => setEditing(true)} className="text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition">{t('edit')}</button>
             )}
             <button type="button" onClick={() => { onDelete(entry.id); onClose(); }}
-              className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">Delete</button>
+              className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">{t('delete')}</button>
           </div>
           {editing && (
             <div className="flex gap-2">
               <button type="button" onClick={() => setEditing(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">Cancel</button>
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">{t('cancel')}</button>
               <button type="button" onClick={saveEdit} disabled={!editContent.trim() || saving}
                 className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950">
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? t('saving') : t('save')}
               </button>
             </div>
           )}
@@ -524,6 +535,7 @@ function VocabDetailModal({ word, onClose, onDelete }: {
   onClose: () => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation('common');
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -535,14 +547,14 @@ function VocabDetailModal({ word, onClose, onDelete }: {
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-emerald-400 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-              Vocab
+              {t('vocabLabel')}
             </span>
             {word.found_in && (
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{word.found_in}</span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(word.created_at)}</span>
+            <span className="text-xs text-slate-400">{formatDate(word.created_at, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -555,16 +567,16 @@ function VocabDetailModal({ word, onClose, onDelete }: {
           <div>
             <p dir="rtl" className="font-arabic text-5xl leading-tight text-slate-900 dark:text-slate-100 text-right">{word.word}</p>
             {word.root && (
-              <p className="mt-2 text-sm text-slate-400">Root: <span className="font-medium text-slate-600 dark:text-slate-300">{word.root}</span></p>
+              <p className="mt-2 text-sm text-slate-400">{t('rootLabel')}: <span className="font-medium text-slate-600 dark:text-slate-300">{word.root}</span></p>
             )}
           </div>
           <div className="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Meaning</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{t('meaningLabel')}</p>
             <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">{word.meaning}</p>
           </div>
           {word.found_in && (
             <div className="rounded-xl bg-emerald-50/60 px-4 py-3 dark:bg-emerald-950/20">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">Found in</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">{t('foundInLabel')}</p>
               <p className="text-sm text-slate-700 dark:text-slate-300">{word.found_in}</p>
             </div>
           )}
@@ -572,10 +584,10 @@ function VocabDetailModal({ word, onClose, onDelete }: {
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
           <button type="button" onClick={() => { onDelete(word.id); onClose(); }}
-            className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">Delete</button>
+            className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">{t('delete')}</button>
           <button type="button" onClick={onClose}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">
-            Close
+            {t('close')}
           </button>
         </div>
       </motion.div>
@@ -590,6 +602,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
   onClose: () => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation('common');
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -601,14 +614,14 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
-              {milestone.emoji} Milestone
+              {milestone.emoji} {t('tagMilestone')}
             </span>
             {milestone.type === 'auto' && (
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">auto</span>
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('autoLabel')}</span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(milestone.created_at)}</span>
+            <span className="text-xs text-slate-400">{formatDate(milestone.created_at, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -623,7 +636,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
             <div>
               <p className="text-lg font-medium leading-relaxed text-slate-800 dark:text-slate-200">{milestone.text}</p>
               <p className="mt-2 text-sm text-slate-400">
-                {normalizeISO(milestone.created_at).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {normalizeISO(milestone.created_at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -631,10 +644,10 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
           <button type="button" onClick={() => { onDelete(milestone.id); onClose(); }}
-            className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">Delete</button>
+            className="text-xs text-slate-300 hover:text-red-500 dark:text-slate-700 dark:hover:text-red-400 transition">{t('delete')}</button>
           <button type="button" onClick={onClose}
             className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">
-            Close
+            {t('close')}
           </button>
         </div>
       </motion.div>
@@ -648,6 +661,7 @@ function WriteModal({ onSave, onClose }: {
   onSave: (e: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('common');
   const [surahInput, setSurahInput] = useState('');
   const [ayahInput, setAyahInput] = useState('');
   const [content, setContent] = useState('');
@@ -671,34 +685,34 @@ function WriteModal({ onSave, onClose }: {
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.22 }}
         className="relative z-10 w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">New Entry</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newEntry')}</p>
           <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
         <div className="mb-3 flex gap-2">
           <SurahSelect value={surahInput} onChange={setSurahInput} />
-          <input type="number" min={1} value={ayahInput} onChange={(e) => setAyahInput(e.target.value)} placeholder="Ayah #"
+          <input type="number" min={1} value={ayahInput} onChange={(e) => setAyahInput(e.target.value)} placeholder={t('ayahNum')}
             className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
         </div>
         <div className="mb-3 flex flex-wrap gap-2">
-          {(Object.keys(TAG_CONFIG) as Tag[]).map((t) => (
-            <button key={t} type="button" onClick={() => setTag(t)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${tag === t ? TAG_CONFIG[t].activePill : TAG_CONFIG[t].pill}`}>
-              {TAG_CONFIG[t].label}
+          {(Object.keys(TAG_CONFIG) as Tag[]).map((tagKey) => (
+            <button key={tagKey} type="button" onClick={() => setTag(tagKey)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${tag === tagKey ? TAG_CONFIG[tagKey].activePill : TAG_CONFIG[tagKey].pill}`}>
+              {t(TAG_CONFIG[tagKey].labelKey)}
             </button>
           ))}
         </div>
         <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave(); }}
-          rows={5} placeholder="What's on your heart today?"
+          rows={5} placeholder={t('reflectionPlaceholder')}
           className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-xs text-slate-300 dark:text-slate-700">⌘ + Enter to save</span>
+          <span className="text-xs text-slate-300 dark:text-slate-700">{t('cmdEnterSave')}</span>
           <button type="button" onClick={handleSave} disabled={!content.trim() || saving}
             className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition disabled:opacity-30"
             style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}>
-            {saving ? 'Saving…' : 'Save entry →'}
+            {saving ? t('saving') : t('saveEntry')}
           </button>
         </div>
       </motion.div>
@@ -710,6 +724,7 @@ function WriteModal({ onSave, onClose }: {
 
 function JournalInner() {
   const { loading: authLoading } = useRequireAuth();
+  const { t } = useTranslation('common');
   const searchParams = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -724,17 +739,14 @@ function JournalInner() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<Tag | 'all'>('all');
-  const [filterSurah, setFilterSurah] = useState<number | null>(null);
   const [dbError, setDbError] = useState<string | null>(null);
 
-  // Vocab form state
   const [vocabWord, setVocabWord] = useState('');
   const [vocabRoot, setVocabRoot] = useState('');
   const [vocabMeaning, setVocabMeaning] = useState('');
   const [vocabFoundIn, setVocabFoundIn] = useState('');
   const [savingVocab, setSavingVocab] = useState(false);
 
-  // Milestone form state
   const [milestoneText, setMilestoneText] = useState('');
   const [milestoneEmoji, setMilestoneEmoji] = useState('✨');
   const [savingMilestone, setSavingMilestone] = useState(false);
@@ -888,14 +900,12 @@ function JournalInner() {
 
   const pinnedEntries = entries.filter((e) => e.pinned);
   const onThisDay = entries.find((e) => isSameDayPastYear(e.created_at));
-  const surahsWithEntries = Array.from(new Set(entries.map((e) => e.surah_number).filter(Boolean) as number[])).sort((a, b) => a - b);
 
   const filteredEntries = entries.filter((e) => {
     const matchTag = filterTag === 'all' || e.tag === filterTag;
-    const matchSurah = filterSurah === null || e.surah_number === filterSurah;
     const q = searchQuery.toLowerCase();
     const matchSearch = !q || e.content.toLowerCase().includes(q) || (e.surah_number ? surahLabel(e.surah_number).toLowerCase().includes(q) : false);
-    return matchTag && matchSurah && matchSearch;
+    return matchTag && matchSearch;
   });
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -903,7 +913,7 @@ function JournalInner() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="animate-pulse text-slate-400">Loading…</p>
+        <p className="animate-pulse text-slate-400">{t('loadingSession')}</p>
       </div>
     );
   }
@@ -923,10 +933,10 @@ function JournalInner() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
           className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">Private · Spiritual</p>
-            <h1 className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">My Journal</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">{t('privateSpiritual')}</p>
+            <h1 className="mt-1.5 text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">{t('myJournal')}</h1>
             <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500">
-              {loading ? 'Loading…' : `${entries.length} entries · ${vocab.length} vocab · ${milestones.length} milestones`}
+              {loading ? t('loadingSession') : t('journalStats', { e: entries.length, v: vocab.length, m: milestones.length })}
             </p>
           </div>
           {entries.length > 0 && (
@@ -935,7 +945,7 @@ function JournalInner() {
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span className="hidden sm:inline">Export PDF</span>
+              <span className="hidden sm:inline">{t('exportPDF')}</span>
             </button>
           )}
         </motion.div>
@@ -948,12 +958,12 @@ function JournalInner() {
 
             {/* Overview card */}
             <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Overview</p>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('overview')}</p>
               <div className="space-y-3">
                 {[
-                  { section: 'Reflections', val: entries.length, sub: `${thisWeekCount(entries)} this week` },
-                  { section: 'Vocabulary', val: vocab.length, sub: 'words saved' },
-                  { section: 'Milestones', val: milestones.length, sub: 'recorded' },
+                  { section: t('reflections'), val: entries.length, sub: `${thisWeekCount(entries)} ${t('thisWeekSuffix')}` },
+                  { section: t('vocabulary'), val: vocab.length, sub: t('wordsLabel') },
+                  { section: t('milestones'), val: milestones.length, sub: t('recordedLabel') },
                 ].map(({ section, val, sub }) => (
                   <div key={section} className="flex items-center justify-between gap-2">
                     <div className="leading-5">
@@ -966,7 +976,7 @@ function JournalInner() {
               </div>
               {pinnedEntries.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-sm text-slate-500">📌 Pinned</span>
+                  <span className="text-sm text-slate-500">📌 {t('pinnedLabel')}</span>
                   <span className="text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">{pinnedEntries.length}</span>
                 </div>
               )}
@@ -975,7 +985,7 @@ function JournalInner() {
             {/* Latest vocab */}
             {vocab[0] && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">Latest Word</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('latestWord')}</p>
                 <p className="font-arabic text-2xl text-slate-900 dark:text-slate-100 text-right leading-relaxed" dir="rtl">{vocab[0].word}</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{vocab[0].meaning}</p>
               </div>
@@ -984,9 +994,9 @@ function JournalInner() {
             {/* Latest milestone */}
             {milestones[0] && (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">Latest Milestone</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('latestMilestone')}</p>
                 <p className="text-xs text-slate-400 mb-1.5 leading-relaxed">
-                  {normalizeISO(milestones[0].created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {normalizeISO(milestones[0].created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
                 <p className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-300 line-clamp-3">{milestones[0].text}</p>
               </div>
@@ -1002,24 +1012,22 @@ function JournalInner() {
             {/* ── Column 1: Entries ── */}
             <div className="flex-1 min-w-0 lg:pr-4 xl:pr-5">
 
-              {/* Column header */}
               <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Reflections</h2>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('reflections')}</h2>
                 {entries.length > 0 && (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-800 dark:text-slate-400">{entries.length}</span>
                 )}
               </div>
 
-              {/* New Entry block */}
               <button
                 type="button"
                 onClick={() => setShowWriteModal(true)}
                 className="mb-4 w-full rounded-xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Write a reflection…</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">{t('writeReflection')}</span>
                   <span className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white dark:bg-slate-100 dark:text-slate-950">
-                    New entry →
+                    {t('newEntry')}
                   </span>
                 </div>
               </button>
@@ -1035,39 +1043,39 @@ function JournalInner() {
                 <>
                   {onThisDay && (
                     <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
-                      <p className="mb-1 text-xs font-semibold text-amber-600 dark:text-amber-500">📖 On this day, {normalizeISO(onThisDay.created_at).getFullYear()}</p>
+                      <p className="mb-1 text-xs font-semibold text-amber-600 dark:text-amber-500">
+                        {t('onThisDay', { year: normalizeISO(onThisDay.created_at).getFullYear() })}
+                      </p>
                       <p className="line-clamp-2 text-xs leading-5 text-slate-700 dark:text-slate-300">{onThisDay.content}</p>
                       {onThisDay.surah_number && <p className="mt-1 text-[11px] text-slate-400">{surahLabel(onThisDay.surah_number)}</p>}
                     </div>
                   )}
 
-                  {/* Search */}
                   <div className="mb-2 relative">
                     <svg className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search entries…"
+                    <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('searchEntries')}
                       className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                   </div>
 
-                  {/* Filter block */}
                   <div className="mb-3 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
                     <div className="flex flex-wrap gap-1">
-                      {(['all', ...Object.keys(TAG_CONFIG)] as (Tag | 'all')[]).map((t) => (
-                        <button key={t} onClick={() => setFilterTag(t)}
+                      {(['all', ...Object.keys(TAG_CONFIG)] as (Tag | 'all')[]).map((tTag) => (
+                        <button key={tTag} onClick={() => setFilterTag(tTag)}
                           className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                            filterTag === t
-                              ? t === 'all' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950' : TAG_CONFIG[t as Tag].activePill
+                            filterTag === tTag
+                              ? tTag === 'all' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950' : TAG_CONFIG[tTag as Tag].activePill
                               : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'
                           }`}>
-                          {t === 'all' ? 'All' : TAG_CONFIG[t as Tag].label}
+                          {tTag === 'all' ? t('all') : t(TAG_CONFIG[tTag as Tag].labelKey)}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {filteredEntries.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-slate-400">No entries match.</p>
+                    <p className="py-8 text-center text-sm text-slate-400">{t('noEntriesMatch')}</p>
                   ) : (
                     <div className="space-y-2">
                       <AnimatePresence initial={false}>
@@ -1083,40 +1091,37 @@ function JournalInner() {
               )}
             </div>
 
-            {/* Gold divider: Entries | Vocab */}
             <GoldDivider className="hidden lg:flex" />
 
             {/* ── Column 2: Vocabulary ── */}
             <div className="flex-1 min-w-0 lg:px-4 xl:px-5 mt-10 lg:mt-0">
 
-              {/* Column header */}
               <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Vocabulary</h2>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('vocabulary')}</h2>
                 {vocab.length > 0 && (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-800 dark:text-slate-400">{vocab.length}</span>
                 )}
               </div>
 
-              {/* Add form */}
               <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
-                <input value={vocabWord} onChange={(e) => setVocabWord(e.target.value)} placeholder="Arabic word" dir="rtl"
+                <input value={vocabWord} onChange={(e) => setVocabWord(e.target.value)} placeholder={t('arabicWord')} dir="rtl"
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right font-arabic text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
-                <input value={vocabRoot} onChange={(e) => setVocabRoot(e.target.value)} placeholder="Root letters (e.g. ك ت ب)"
+                <input value={vocabRoot} onChange={(e) => setVocabRoot(e.target.value)} placeholder={t('rootLetters')}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
-                <input value={vocabMeaning} onChange={(e) => setVocabMeaning(e.target.value)} placeholder="Meaning *"
+                <input value={vocabMeaning} onChange={(e) => setVocabMeaning(e.target.value)} placeholder={t('meaningRequired')}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
-                <input value={vocabFoundIn} onChange={(e) => setVocabFoundIn(e.target.value)} placeholder="Found in (e.g. Al-Baqarah 2:255)"
+                <input value={vocabFoundIn} onChange={(e) => setVocabFoundIn(e.target.value)} placeholder={t('foundInPlaceholder')}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
                 <div className="flex justify-end pt-0.5">
                   <button onClick={handleAddVocab} disabled={!vocabWord.trim() || !vocabMeaning.trim() || savingVocab}
                     className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950">
-                    {savingVocab ? 'Saving…' : 'Add word →'}
+                    {savingVocab ? t('saving') : t('addWord')}
                   </button>
                 </div>
               </div>
 
               {vocab.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">Words you encounter during memorisation will live here.</div>
+                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">{t('vocabEmptyHint')}</div>
               ) : (
                 <div className="space-y-2">
                   {vocab.map((w) => (
@@ -1126,21 +1131,18 @@ function JournalInner() {
               )}
             </div>
 
-            {/* Gold divider: Vocab | Milestones */}
             <GoldDivider className="hidden lg:flex" />
 
             {/* ── Column 3: Milestones ── */}
             <div className="flex-1 min-w-0 lg:pl-4 xl:pl-5 mt-10 lg:mt-0">
 
-              {/* Column header */}
               <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Milestones</h2>
+                <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('milestones')}</h2>
                 {milestones.length > 0 && (
                   <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-800 dark:text-slate-400">{milestones.length}</span>
                 )}
               </div>
 
-              {/* Add form */}
               <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
                 <div className="flex gap-2">
                   <CustomSelect
@@ -1150,19 +1152,19 @@ function JournalInner() {
                   />
                   <input value={milestoneText} onChange={(e) => setMilestoneText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddMilestone(); }}
-                    placeholder="e.g. Completed Surah Al-Kahf"
+                    placeholder={t('milestonePlaceholder')}
                     className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
                 </div>
                 <div className="flex justify-end">
                   <button onClick={handleAddMilestone} disabled={!milestoneText.trim() || savingMilestone}
                     className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950">
-                    {savingMilestone ? '…' : 'Add →'}
+                    {savingMilestone ? '…' : `${t('add')} →`}
                   </button>
                 </div>
               </div>
 
               {milestones.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">Your milestones — big and small — will live here.</div>
+                <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400 dark:border-slate-800">{t('milestonesEmptyHint')}</div>
               ) : (
                 <div className="space-y-2">
                   {milestones.map((m) => (

@@ -99,7 +99,7 @@ export function HadithCard() {
       <div className="flex items-center gap-2 mb-1">
         <span className="text-amber-500 text-lg">✦</span>
         <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-500">
-          Verse of the Day
+          {t('verseOfDay')}
         </p>
         {verse && (
           <p className="ml-auto text-[11px] text-amber-400 dark:text-amber-600">
@@ -121,17 +121,17 @@ export function HadithCard() {
         </>
       ) : (
         <p className="mt-5 flex-1 text-sm italic text-amber-400">
-          Could not load verse — check your connection.
+          {t('verseLoadError')}
         </p>
       )}
 
       {/* ── Hadith of the Day ── */}
       <div className="mt-5 border-t border-amber-100/70 pt-4 dark:border-amber-900/30">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-500 mb-2">
-          Hadith of the Day
+          {t('hadithOfDay')}
         </p>
         {hadithLoading ? (
-          <p className="animate-pulse text-sm text-amber-400">Loading hadith…</p>
+          <p className="animate-pulse text-sm text-amber-400">{t('loadingHadith')}</p>
         ) : hadith ? (
           <>
             <p className="text-base leading-7 text-slate-600 dark:text-slate-400">

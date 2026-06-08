@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 
@@ -15,7 +16,7 @@ type ProfileData = {
   fullName: string;
   email: string;
   location: string;
-  journeyStart: string;        // YYYY-MM-DD
+  journeyStart: string;
   ustadh: string;
   method: Method | '';
   niyyah: string;
@@ -42,12 +43,6 @@ function initials(name: string): string {
     .map((w) => w[0].toUpperCase())
     .join('');
 }
-
-const METHOD_OPTIONS: { value: Method; label: string; desc: string }[] = [
-  { value: 'page',  label: 'By Page',  desc: 'Memorise one page at a time' },
-  { value: 'ayah',  label: 'By Ayah',  desc: 'Ayah by ayah, building up' },
-  { value: 'surah', label: 'By Surah', desc: 'Whole surah at once' },
-];
 
 // ─── Reusable field ───────────────────────────────────────────────────────────
 
@@ -116,6 +111,7 @@ function Divider() {
 
 export default function ProfilePage() {
   const { loading: authLoading } = useRequireAuth();
+  const { t } = useTranslation('common');
   const [, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '', email: '', location: '', journeyStart: '',
@@ -128,6 +124,12 @@ export default function ProfilePage() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const METHOD_OPTIONS: { value: Method; labelKey: string }[] = [
+    { value: 'page',  labelKey: 'methodByPage' },
+    { value: 'ayah',  labelKey: 'methodByAyah' },
+    { value: 'surah', labelKey: 'methodBySurah' },
+  ];
+
   // ── Load ──
   useEffect(() => {
     async function load() {
@@ -138,7 +140,6 @@ export default function ProfilePage() {
       setUserId(user.id);
       const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
 
-      // Set profile from cached session — zero network, instant render
       setProfile({
         fullName:     (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '',
         email:        user.email ?? '',
@@ -148,7 +149,7 @@ export default function ProfilePage() {
         method:       (meta.memorization_method as Method) || '',
         niyyah:       (meta.niyyah as string) || '',
       });
-      setLoading(false); // page renders now — stats update silently below
+      setLoading(false);
 
       const [progressRes, journalRes] = await Promise.all([
         supabase.from('surah_progress').select('surah_number').eq('user_id', user.id).eq('status', 'memorized'),
@@ -186,9 +187,7 @@ export default function ProfilePage() {
       },
     });
     if (error) { setSaving(false); return; }
-    // Refresh the local JWT so getSession() returns fresh metadata on next load
     await supabase.auth.refreshSession();
-    // Keep the dashboard's name cache in sync so it shows the new name immediately
     try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
     setSaving(false);
     setSaved(true);
@@ -197,8 +196,6 @@ export default function ProfilePage() {
   }
 
   async function signOut() {
-    // Cancel any pending auto-save before signing out to avoid a refreshSession
-    // race that could restore the session immediately after signOut.
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     const { error } = await supabase.auth.signOut({ scope: 'global' });
     if (error) {
@@ -211,7 +208,7 @@ export default function ProfilePage() {
   if (loading || authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="animate-pulse text-slate-400">Loading…</p>
+        <p className="animate-pulse text-slate-400">{t('loadingSession')}</p>
       </div>
     );
   }
@@ -235,20 +232,20 @@ export default function ProfilePage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
-                {profile.fullName || 'Your Name'}
+                {profile.fullName || t('yourNamePlaceholder')}
               </p>
               <p className="truncate text-sm text-slate-400">{profile.email}</p>
             </div>
             <span className={`shrink-0 text-xs transition-opacity ${saving ? 'text-slate-400 opacity-70' : saved ? 'text-emerald-600 opacity-100 dark:text-emerald-400' : 'opacity-0'}`}>
-              {saving ? 'Saving…' : '✓ Saved'}
+              {saving ? t('saving') : t('savedStatus')}
             </span>
           </div>
 
           {/* ── Stats row ── */}
           <div className="grid grid-cols-3 gap-3">
-            <StatCard value={stats.memorized} label="Surahs memorised" />
-            <StatCard value={stats.journalEntries} label="Journal entries" />
-            <StatCard value={days > 0 ? days : '—'} label="Days on journey" />
+            <StatCard value={stats.memorized} label={t('surahsMemorised')} />
+            <StatCard value={stats.journalEntries} label={t('journalEntries')} />
+            <StatCard value={days > 0 ? days : '—'} label={t('daysOnJourney')} />
           </div>
 
           <Divider />
@@ -259,23 +256,23 @@ export default function ProfilePage() {
             {/* Left column: Basic Info + Method */}
             <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-                Basic Info
+                {t('basicInfo')}
               </p>
               <Field
-                label="Name"
+                label={t('nameLabel')}
                 value={profile.fullName}
-                placeholder="Your name"
+                placeholder={t('yourNamePlaceholder')}
                 onChange={(v) => updateField('fullName', v)}
               />
               <Field
-                label="City / Country"
+                label={t('cityCountry')}
                 value={profile.location}
                 placeholder="e.g. London, UK"
                 onChange={(v) => updateField('location', v)}
               />
 
               <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-                Memorisation Method
+                {t('memorisationMethod')}
               </p>
               <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
                 <div className="flex flex-wrap gap-2">
@@ -289,7 +286,7 @@ export default function ProfilePage() {
                           : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300'
                       }`}
                     >
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -299,28 +296,28 @@ export default function ProfilePage() {
             {/* Right column: Hifdh + Niyyah */}
             <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-                Your Hifdh
+                {t('yourHifdh')}
               </p>
               <Field
-                label="Journey started"
+                label={t('journeyStarted')}
                 value={profile.journeyStart}
                 type="date"
                 onChange={(v) => updateField('journeyStart', v)}
               />
               <Field
-                label="Ustadh (teacher)"
+                label={t('ustadh')}
                 value={profile.ustadh}
-                placeholder="Optional"
+                placeholder={t('add')}
                 onChange={(v) => updateField('ustadh', v)}
               />
 
               <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-                Your Niyyah
+                {t('yourNiyyah')}
               </p>
               <Field
-                label="Why I began"
+                label={t('whyIBegan')}
                 value={profile.niyyah}
-                placeholder="I began this journey because…"
+                placeholder={t('niyyahPlaceholder')}
                 onChange={(v) => updateField('niyyah', v)}
                 multiline
               />
@@ -335,7 +332,7 @@ export default function ProfilePage() {
             onClick={signOut}
             className="w-full rounded-2xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/20"
           >
-            Sign Out
+            {t('signOut')}
           </button>
 
         </motion.div>

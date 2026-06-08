@@ -352,7 +352,7 @@ export default function DashboardPage() {
             {/* Juz selector */}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Studying Juz
+                {t('studyingJuz')}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {Array.from({ length: 30 }, (_, i) => i + 1).map((j) => (
@@ -376,7 +376,7 @@ export default function DashboardPage() {
                   onClick={clearTargetJuz}
                   className="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                 >
-                  auto-detect
+                  {t('autoDetect')}
                 </button>
               )}
             </div>

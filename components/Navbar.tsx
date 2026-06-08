@@ -10,12 +10,12 @@ import { IslamicThemeToggle } from './IslamicToggle';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
-const navItems = [
-  { href: '/', label: 'Home' },
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/map', label: 'Mushaf Map' },
-  { href: '/journal', label: 'Journal' },
-];
+const NAV_KEYS = [
+  { href: '/', key: 'navHome' },
+  { href: '/dashboard', key: 'navDashboard' },
+  { href: '/map', key: 'mushafMap' },
+  { href: '/journal', key: 'navJournal' },
+] as const;
 
 const languages = [
   { code: 'en', name: 'EN' },
@@ -84,7 +84,7 @@ function LanguageSwitcher({ current, onChange }: { current: string; onChange: (l
 
 export function Navbar() {
   const pathname = usePathname();
-  const { i18n } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -132,7 +132,7 @@ export function Navbar() {
 
         {/* ── Desktop nav ─────────────────────────────────── */}
         <nav className="hidden lg:flex items-center gap-0.5 text-sm font-medium">
-          {navItems.map((item) => (
+          {NAV_KEYS.map((item) => (
             <Link key={item.href} href={item.href}
               className={`rounded-lg px-3.5 py-2 transition-colors ${
                 isActive(item.href)
@@ -140,7 +140,7 @@ export function Navbar() {
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
             >
-              {item.label}
+              {t(item.key)}
             </Link>
           ))}
 
@@ -170,7 +170,7 @@ export function Navbar() {
               className="ml-1 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}
             >
-              {signingIn ? 'Redirecting…' : 'Sign in'}
+              {signingIn ? t('redirecting') : t('signIn')}
             </button>
           )}
         </nav>
@@ -196,7 +196,7 @@ export function Navbar() {
               className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}
             >
-              {signingIn ? '…' : 'Sign in'}
+              {signingIn ? '…' : t('signIn')}
             </button>
           )}
 
@@ -233,7 +233,7 @@ export function Navbar() {
             className="overflow-hidden border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950 lg:hidden"
           >
             <nav className="px-4 py-3 space-y-0.5 sm:px-6">
-              {navItems.map((item) => (
+              {NAV_KEYS.map((item) => (
                 <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-2 rounded-xl px-4 py-3 text-base font-medium transition-colors ${
                     isActive(item.href)
@@ -241,7 +241,7 @@ export function Navbar() {
                       : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
                   }`}
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               ))}
             </nav>
