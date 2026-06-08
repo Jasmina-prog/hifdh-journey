@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 
@@ -10,8 +11,12 @@ type Task = { id: string; title: string; completed: boolean; month: string };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function monthAbbr(idx: number, locale: string) {
+  return new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(2024, idx, 1));
+}
+function monthFull(idx: number, locale: string) {
+  return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2024, idx, 1));
+}
 
 function currentYear()    { return new Date().getFullYear(); }
 function currentMonthKey() {
@@ -49,11 +54,13 @@ function cellStyle(tasks: Task[], key: string) {
 
 // ─── Year Grid ────────────────────────────────────────────────────────────────
 
-function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
+function YearGrid({ year, tasksByMonth, viewing, onSelect, locale, t }: {
   year: number;
   tasksByMonth: Record<string, Task[]>;
   viewing: string;
   onSelect: (key: string) => void;
+  locale: string;
+  t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   const yearDone  = Object.values(tasksByMonth).reduce((s, ts) => s + ts.filter((t) => t.completed).length, 0);
   const yearTotal = Object.values(tasksByMonth).reduce((s, ts) => s + ts.length, 0);
@@ -62,17 +69,17 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
     <div className="mb-6">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          {year} at a glance
+          {t('yearAtAGlance', { year })}
         </p>
         {yearTotal > 0 && (
           <span className="text-xs tabular-nums font-medium text-slate-400 dark:text-slate-500">
-            {yearDone}/{yearTotal} goals
+            {yearDone}/{yearTotal} {t('goals')}
           </span>
         )}
       </div>
 
       <div className="grid grid-cols-6 gap-2">
-        {MONTH_ABBR.map((abbr, idx) => {
+        {Array.from({ length: 12 }, (_, idx) => {
           const key    = monthKeyOf(year, idx);
           const tasks  = tasksByMonth[key] ?? [];
           const done   = tasks.filter((t) => t.completed).length;
@@ -94,7 +101,7 @@ function YearGrid({ year, tasksByMonth, viewing, onSelect }: {
                 ${isFuture ? '[mask:linear-gradient(to_bottom,black_40%,transparent_100%)]' : ''}
               `}
             >
-              <span className={`text-[11px] font-bold tracking-wide leading-none ${style.text}`}>{abbr}</span>
+              <span className={`text-[11px] font-bold tracking-wide leading-none ${style.text}`}>{monthAbbr(idx, locale)}</span>
 
               {/* Thin progress bar */}
               <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: 'rgba(148,163,184,0.2)' }}>
@@ -197,6 +204,8 @@ function TaskRow({ task, editable, onToggle, onDelete, onEdit }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MonthlyTasks({ userId }: { userId: string | null }) {
+  const { t, i18n } = useTranslation('common');
+  const locale = i18n.language;
   const [allTasks,     setAllTasks]     = useState<Task[]>([]);
   const [viewingMonth, setViewingMonth] = useState(currentMonthKey());
   const [input,        setInput]        = useState('');
@@ -330,7 +339,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
   const isViewingFuture = !isPast(viewingMonth) && !isCurrent(viewingMonth);
   const isEditable      = isViewingCur || isViewingFuture;
   const monthIdx        = parseInt(viewingMonth.slice(5), 10) - 1;
-  const monthLabel      = `${MONTH_FULL[monthIdx]} ${year}`;
+  const monthLabel      = `${monthFull(monthIdx, locale)} ${year}`;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -339,14 +348,14 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
       {/* Header */}
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Monthly Goals</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('monthlyGoals')}</p>
           <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
-            {MONTH_FULL[new Date().getMonth()]} {year}
+            {monthFull(new Date().getMonth(), locale)} {year}
           </h2>
         </div>
         {(tasksByMonth[curKey]?.length ?? 0) > 0 && (
           <span className="text-sm tabular-nums text-slate-400 dark:text-slate-500">
-            {tasksByMonth[curKey].filter((t) => t.completed).length}/{tasksByMonth[curKey].length} this month
+            {tasksByMonth[curKey].filter((t) => t.completed).length}/{tasksByMonth[curKey].length} {t('thisMonth')}
           </span>
         )}
       </div>
@@ -357,6 +366,8 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
         tasksByMonth={tasksByMonth}
         viewing={viewingMonth}
         onSelect={(key) => setViewingMonth(key)}
+        locale={locale}
+        t={t}
       />
 
       {/* Selected month detail */}
@@ -373,15 +384,15 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">{monthLabel}</h3>
               {isViewingCur
-                ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">Current</span>
+                ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">{t('monthCurrent')}</span>
                 : isViewingFuture
-                  ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">Upcoming</span>
-                  : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">Ended</span>
+                  ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:bg-slate-800 dark:text-slate-500">{t('monthUpcoming')}</span>
+                  : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('monthEnded')}</span>
               }
             </div>
             {viewingTasks.length > 0 && (
               <span className="text-xs tabular-nums font-medium text-slate-400 dark:text-slate-500">
-                {viewingDone}/{viewingTasks.length} completed
+                {viewingDone}/{viewingTasks.length} {t('monthCompleted')}
               </span>
             )}
           </div>
@@ -404,16 +415,16 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
                 </svg>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   {isViewingCur
-                    ? 'Every great journey begins with one intention.'
+                    ? t('goalEmptyCurrent')
                     : isViewingFuture
-                    ? 'Plant your goals now — the future is waiting.'
-                    : 'No goals were recorded for this month.'}
+                    ? t('goalEmptyFuture')
+                    : t('goalEmptyPast')}
                 </p>
                 <p className="text-xs text-slate-300 dark:text-slate-600">
                   {isViewingCur
-                    ? 'What do you want to achieve this month?'
+                    ? t('goalEmptyCurrentHint')
                     : isViewingFuture
-                    ? 'Plan ahead and make it count.'
+                    ? t('goalEmptyFutureHint')
                     : ''}
                 </p>
               </li>
@@ -427,7 +438,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addTask(); }}
-                placeholder={isViewingFuture ? `Plan a goal for ${MONTH_FULL[monthIdx]}…` : 'Add a goal for this month…'}
+                placeholder={isViewingFuture ? t('goalPlaceholderFuture', { month: monthFull(monthIdx, locale) }) : t('goalPlaceholder')}
                 className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-700 dark:focus:border-slate-600"
               />
               <button
@@ -436,7 +447,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
                 disabled={!input.trim()}
                 className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-slate-300"
               >
-                Add
+                {t('add')}
               </button>
             </div>
           )}

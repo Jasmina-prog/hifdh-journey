@@ -20,6 +20,7 @@ type ProfileData = {
   ustadh: string;
   method: Method | '';
   niyyah: string;
+  dailyGoalPages: string;
 };
 
 type Stats = {
@@ -115,7 +116,7 @@ export default function ProfilePage() {
   const [, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '', email: '', location: '', journeyStart: '',
-    ustadh: '', method: '', niyyah: '',
+    ustadh: '', method: '', niyyah: '', dailyGoalPages: '',
   });
   const [stats, setStats] = useState<Stats>({ memorized: 0, journalEntries: 0 });
   const [loading, setLoading] = useState(true);
@@ -140,14 +141,21 @@ export default function ProfilePage() {
       setUserId(user.id);
       const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
 
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('full_name, daily_goal_pages')
+        .eq('id', user.id)
+        .maybeSingle();
+
       setProfile({
-        fullName:     (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '',
-        email:        user.email ?? '',
-        location:     (meta.location as string) || '',
-        journeyStart: (meta.journey_start as string) || '',
-        ustadh:       (meta.ustadh as string) || '',
-        method:       (meta.memorization_method as Method) || '',
-        niyyah:       (meta.niyyah as string) || '',
+        fullName:       (profileRow?.full_name as string) || (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '',
+        email:          user.email ?? '',
+        location:       (meta.location as string) || '',
+        journeyStart:   (meta.journey_start as string) || '',
+        ustadh:         (meta.ustadh as string) || '',
+        method:         (meta.memorization_method as Method) || '',
+        niyyah:         (meta.niyyah as string) || '',
+        dailyGoalPages: profileRow?.daily_goal_pages != null ? String(profileRow.daily_goal_pages) : '',
       });
       setLoading(false);
 
@@ -176,17 +184,29 @@ export default function ProfilePage() {
   async function saveProfile(data: ProfileData) {
     setSaving(true);
     setSaved(false);
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        full_name:            data.fullName.trim(),
-        location:             data.location.trim(),
-        journey_start:        data.journeyStart || null,
-        ustadh:               data.ustadh.trim(),
-        memorization_method:  data.method,
-        niyyah:               data.niyyah.trim(),
-      },
-    });
-    if (error) { setSaving(false); return; }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+
+    const [metaResult, profileResult] = await Promise.all([
+      supabase.auth.updateUser({
+        data: {
+          full_name:            data.fullName.trim(),
+          location:             data.location.trim(),
+          journey_start:        data.journeyStart || null,
+          ustadh:               data.ustadh.trim(),
+          memorization_method:  data.method,
+          niyyah:               data.niyyah.trim(),
+        },
+      }),
+      uid ? supabase.from('profiles').upsert({
+        id:               uid,
+        full_name:        data.fullName.trim(),
+        daily_goal_pages: data.dailyGoalPages ? parseInt(data.dailyGoalPages, 10) || null : null,
+      }, { onConflict: 'id' }) : Promise.resolve({ error: null }),
+    ]);
+
+    if (metaResult.error || profileResult.error) { setSaving(false); return; }
     await supabase.auth.refreshSession();
     try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
     setSaving(false);
@@ -269,6 +289,13 @@ export default function ProfilePage() {
                 value={profile.location}
                 placeholder="e.g. London, UK"
                 onChange={(v) => updateField('location', v)}
+              />
+              <Field
+                label={t('dailyGoalPages')}
+                value={profile.dailyGoalPages}
+                placeholder="e.g. 1"
+                type="number"
+                onChange={(v) => updateField('dailyGoalPages', v)}
               />
 
               <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">

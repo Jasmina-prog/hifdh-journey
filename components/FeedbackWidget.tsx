@@ -18,6 +18,7 @@
 // ALTER TABLE feedback ADD COLUMN IF NOT EXISTS name text;
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 
@@ -26,8 +27,8 @@ const gold = 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)';
 const TYPES = [
   {
     id: 'idea',
-    label: 'Idea',
-    hint: 'What feature would make this better?',
+    labelKey: 'feedbackTypeIdea',
+    hintKey: 'feedbackTypeIdeaHint',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.355a7.5 7.5 0 0 1-3 0M9 9a3 3 0 1 1 6 0 3 3 0 0 1-6 0Z" />
@@ -36,8 +37,8 @@ const TYPES = [
   },
   {
     id: 'question',
-    label: 'Question',
-    hint: "Something you're wondering about?",
+    labelKey: 'feedbackTypeQuestion',
+    hintKey: 'feedbackTypeQuestionHint',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
@@ -46,8 +47,8 @@ const TYPES = [
   },
   {
     id: 'issue',
-    label: 'Issue',
-    hint: 'What went wrong?',
+    labelKey: 'feedbackTypeIssue',
+    hintKey: 'feedbackTypeIssueHint',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
@@ -56,8 +57,8 @@ const TYPES = [
   },
   {
     id: 'love',
-    label: 'Love',
-    hint: 'What do you love about this?',
+    labelKey: 'feedbackTypeLove',
+    hintKey: 'feedbackTypeLoveHint',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-3.5 w-3.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -69,6 +70,7 @@ const TYPES = [
 type Status = 'idle' | 'sending' | 'done' | 'error';
 
 export function FeedbackWidget() {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const [type, setType] = useState('idea');
   const [message, setMessage] = useState('');
@@ -86,7 +88,8 @@ export function FeedbackWidget() {
     if (open) setTimeout(() => textareaRef.current?.focus(), 120);
   }, [open]);
 
-  const hint = TYPES.find((t) => t.id === type)?.hint ?? '';
+  const hintKey = TYPES.find((tp) => tp.id === type)?.hintKey ?? '';
+  const hint = hintKey ? t(hintKey) : '';
 
   const close = () => {
     setOpen(false);
@@ -144,8 +147,8 @@ export function FeedbackWidget() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Share your thoughts</p>
-                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Questions, ideas, or anything — we read every one.</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{t('feedbackTitle')}</p>
+                <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{t('feedbackDesc')}</p>
               </div>
               <button
                 onClick={close}
@@ -174,8 +177,8 @@ export function FeedbackWidget() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-slate-900 dark:text-white">Something went wrong</p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Your feedback wasn't saved. Please try again.</p>
+                    <p className="text-base font-semibold text-slate-900 dark:text-white">{t('feedbackErrorTitle')}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('feedbackErrorDesc')}</p>
                   </div>
                   <div className="flex gap-3">
                     <button
@@ -183,13 +186,13 @@ export function FeedbackWidget() {
                       className="rounded-xl px-5 py-2 text-sm font-semibold text-slate-950 shadow-md transition hover:opacity-90"
                       style={{ background: gold }}
                     >
-                      Try again
+                      {t('feedbackTryAgain')}
                     </button>
                     <button
                       onClick={close}
                       className="rounded-xl border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
                     >
-                      Close
+                      {t('close')}
                     </button>
                   </div>
                 </motion.div>
@@ -215,8 +218,8 @@ export function FeedbackWidget() {
                     </svg>
                   </motion.div>
                   <div>
-                    <p className="text-base font-semibold text-slate-900 dark:text-white">JazakAllahu khayran!</p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Your feedback was received.</p>
+                    <p className="text-base font-semibold text-slate-900 dark:text-white">{t('feedbackSuccessTitle')}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('feedbackSuccessDesc')}</p>
                   </div>
                   <button
                     onClick={close}
@@ -236,22 +239,22 @@ export function FeedbackWidget() {
                 >
                   {/* Type chips */}
                   <div className="flex gap-2">
-                    {TYPES.map((t) => (
+                    {TYPES.map((tp) => (
                       <button
-                        key={t.id}
+                        key={tp.id}
                         onMouseDown={(e) => {
                           e.preventDefault(); // prevent textarea blur
-                          switchType(t.id);
+                          switchType(tp.id);
                         }}
                         className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                          type === t.id
+                          type === tp.id
                             ? 'scale-105 text-slate-950 shadow-sm'
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
                         }`}
-                        style={type === t.id ? { background: gold } : {}}
+                        style={type === tp.id ? { background: gold } : {}}
                       >
-                        {t.icon}
-                        {t.label}
+                        {tp.icon}
+                        {t(tp.labelKey)}
                       </button>
                     ))}
                   </div>
@@ -285,11 +288,11 @@ export function FeedbackWidget() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4A10 10 0 002 12h2z" />
                         </svg>
-                        Sending…
+                        {t('feedbackSending')}
                       </>
                     ) : (
                       <>
-                        Send feedback
+                        {t('feedbackSend')}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="h-4 w-4">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                         </svg>
@@ -328,7 +331,7 @@ export function FeedbackWidget() {
           )}
         </AnimatePresence>
         <motion.span key={open ? 'close' : 'open'} initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} transition={{ duration: 0.15 }}>
-          {open ? 'Close' : 'Feedback'}
+          {open ? t('close') : t('feedbackLabel')}
         </motion.span>
       </motion.button>
 

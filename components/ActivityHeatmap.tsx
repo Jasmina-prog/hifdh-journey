@@ -1,11 +1,10 @@
 'use client';
 
+import { useTranslation } from 'react-i18next';
+
 type ProgressRow = {
   last_reviewed: string | null;
 };
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WEEKDAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
 const LEVEL_CLASSES: Record<0 | 1 | 2 | 3 | 4, string> = {
   0: 'bg-slate-200 dark:bg-slate-700',
@@ -23,7 +22,14 @@ function getLevel(count: number, isFuture: boolean): 0 | 1 | 2 | 3 | 4 {
   return 3;
 }
 
+// Jan 1 2024 is Monday — use it as a stable reference for weekday formatting
+const WEEKDAY_REF = new Date(2024, 0, 1); // Mon
+const WEEKDAY_OFFSETS = [null, 0, null, 2, null, 4, null]; // rows 1,3,5 → Mon,Wed,Fri
+
 export function ActivityHeatmap({ progressRows = [] }: { progressRows?: ProgressRow[] }) {
+  const { t, i18n } = useTranslation('common');
+  const locale = i18n.language;
+
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
 
@@ -60,6 +66,9 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
   const thisYear = today.getFullYear().toString();
   const totalDone = Array.from(activityMap.keys()).filter((d) => d.startsWith(thisYear)).length;
 
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short' });
+  const weekdayFmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+
   return (
     <div className="w-full">
       {/* Month labels row */}
@@ -70,7 +79,11 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
         <span />
         {Array.from({ length: WEEKS }, (_, i) => {
           const label = monthLabels.find((m) => m.col === i);
-          return <span key={i}>{label ? MONTHS[label.month] : ''}</span>;
+          return (
+            <span key={i}>
+              {label ? monthFmt.format(new Date(2024, label.month, 1)) : ''}
+            </span>
+          );
         })}
       </div>
 
@@ -78,13 +91,15 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
       <div className="flex gap-1.5">
         {/* Weekday labels */}
         <div className="flex w-7 shrink-0 flex-col" style={{ gap: 3 }}>
-          {WEEKDAY_LABELS.map((label, i) => (
+          {WEEKDAY_OFFSETS.map((offset, i) => (
             <div
               key={i}
               className="flex items-center text-[9px] leading-none text-slate-400 dark:text-slate-500"
               style={{ height: 0, flexGrow: 1 }}
             >
-              {label}
+              {offset !== null
+                ? weekdayFmt.format(new Date(WEEKDAY_REF.getTime() + offset * 86400000))
+                : ''}
             </div>
           ))}
         </div>
@@ -104,7 +119,7 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
               const cell = grid[d][w];
               const count = activityMap.get(cell.date) ?? 0;
               const tooltip = count > 0
-                ? `${cell.date} · ${count} surah${count > 1 ? 's' : ''} reviewed`
+                ? t('heatmapTooltip', { count, date: cell.date })
                 : cell.date;
               return (
                 <div
@@ -121,13 +136,13 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
 
       {/* Legend */}
       <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
-        <span>{totalDone} active day{totalDone !== 1 ? 's' : ''} this year</span>
+        <span>{t('heatmapActiveDays', { count: totalDone })}</span>
         <div className="flex items-center gap-1.5">
-          <span>Less</span>
+          <span>{t('heatmapLess')}</span>
           {([0, 1, 2, 3, 4] as const).map((l) => (
             <div key={l} className={`h-3 w-3 rounded-xs ${LEVEL_CLASSES[l]}`} />
           ))}
-          <span>More</span>
+          <span>{t('heatmapMore')}</span>
         </div>
       </div>
     </div>

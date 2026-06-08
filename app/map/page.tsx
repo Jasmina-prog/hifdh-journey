@@ -98,7 +98,7 @@ async function robustUpsert(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function daysAgo(dateStr: string | null, neverLabel: string): string {
+function daysAgo(dateStr: string | null, neverLabel: string, todayLabel: string, yesterdayLabel: string, daysAgoLabel: string): string {
   if (!dateStr) return neverLabel;
   // Compare calendar days in local timezone — avoids UTC-offset "Today" bugs
   const reviewed = new Date(dateStr);
@@ -106,9 +106,9 @@ function daysAgo(dateStr: string | null, neverLabel: string): string {
   today.setHours(0, 0, 0, 0);
   reviewed.setHours(0, 0, 0, 0);
   const diff = Math.round((today.getTime() - reviewed.getTime()) / 86400000);
-  if (diff <= 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  return `${diff}d ago`;
+  if (diff <= 0) return todayLabel;
+  if (diff === 1) return yesterdayLabel;
+  return `${diff} ${daysAgoLabel}`;
 }
 
 const containerV = { hidden: {}, show: { transition: { staggerChildren: 0.02 } } };
@@ -421,7 +421,7 @@ export default function MapPage() {
                   >
                     <p className="text-[10px] text-slate-500 sm:text-xs dark:text-slate-400">#{num}</p>
                     <p className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{meta?.englishName ?? `Surah ${num}`}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">{daysAgo(p?.last_reviewed ?? null, t('never'))}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">{daysAgo(p?.last_reviewed ?? null, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</p>
                   </button>
                 );
               })}
@@ -611,7 +611,7 @@ function SidePanel({
         {progress?.last_reviewed && (
           <>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span>{t('lastReviewed')}: <span className={`font-medium ${cfg.text}`}>{daysAgo(progress.last_reviewed, t('never'))}</span></span>
+            <span>{t('lastReviewed')}: <span className={`font-medium ${cfg.text}`}>{daysAgo(progress.last_reviewed, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</span></span>
           </>
         )}
       </div>
@@ -642,7 +642,7 @@ function SidePanel({
       <hr className="my-4 border-slate-100 dark:border-slate-800" />
 
       {/* Notes */}
-      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">Quick Notes</p>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('quickNotes')}</p>
       <textarea
         value={panelNotes}
         onChange={(e) => onNotesChange(e.target.value)}
@@ -694,14 +694,14 @@ function SidePanel({
       {/* Reflections from Journal */}
       <hr className="my-4 border-slate-100 dark:border-slate-800" />
       <div className="flex items-center justify-between mb-2.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Reflections</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{t('reflections')}</p>
         <Link href="/journal" className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 transition">
-          View all →
+          {t('viewAll')}
         </Link>
       </div>
       {reflections.length === 0 ? (
         <p className="text-xs italic text-slate-300 dark:text-slate-700">
-          {userId ? 'No journal entries for this surah yet.' : 'Sign in to see reflections.'}
+          {userId ? t('noJournalForSurah') : t('signInForReflections')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -727,6 +727,7 @@ function SurahGrid({ surahs, progress, selected, onSelect, tNever, panelOpen }: 
   surahs: SurahMeta[]; progress: ProgressMap; selected: number | null;
   onSelect: (n: number) => void; tNever: string; panelOpen: boolean;
 }) {
+  const { t: tg } = useTranslation('common');
   return (
     <motion.div variants={containerV} initial="hidden" animate="show"
       className={`grid gap-2 ${panelOpen ? 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7' : 'grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9'}`}
@@ -755,7 +756,7 @@ function SurahGrid({ surahs, progress, selected, onSelect, tNever, panelOpen }: 
             )}
             <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-500 sm:text-sm">{s.englishName}</p>
             {p?.last_reviewed && (
-              <p className="mt-0.5 text-[10px] text-slate-300 dark:text-slate-700 sm:text-xs">{daysAgo(p.last_reviewed, tNever)}</p>
+              <p className="mt-0.5 text-[10px] text-slate-300 dark:text-slate-700 sm:text-xs">{daysAgo(p.last_reviewed, tNever, tg('today'), tg('yesterday'), tg('daysAgo'))}</p>
             )}
           </motion.button>
         );
@@ -785,7 +786,7 @@ function JuzGrid({ surahs, progress, onSelect, selected }: {
             className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
           >
             <div className="flex items-center justify-between mb-2">
-              <p className="text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">Juz {juz}</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg">{t('currentJuz')} {juz}</p>
               <p className="text-sm tabular-nums text-slate-400">{memorized}/{total}</p>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -796,9 +797,9 @@ function JuzGrid({ surahs, progress, onSelect, selected }: {
               />
             </div>
             <div className="mt-2 flex gap-3 text-xs sm:text-sm">
-              {memorized > 0 && <span className="text-emerald-600 dark:text-emerald-500">{memorized} memorised</span>}
-              {inProg > 0 && <span className="text-amber-600 dark:text-amber-500">{inProg} in progress</span>}
-              {weak > 0 && <span className="text-red-500">{weak} weak</span>}
+              {memorized > 0 && <span className="text-emerald-600 dark:text-emerald-500">{memorized} {t('memorised')}</span>}
+              {inProg > 0 && <span className="text-amber-600 dark:text-amber-500">{inProg} {t('inProgress')}</span>}
+              {weak > 0 && <span className="text-red-500">{weak} {t('weakLabel')}</span>}
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {surahNums.map((num) => {

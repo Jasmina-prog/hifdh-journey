@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function PwaUpdateBanner() {
+  const { t } = useTranslation('common');
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -17,12 +19,12 @@ export function PwaUpdateBanner() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between bg-slate-800 px-4 py-3 text-white shadow-lg">
-      <span className="text-sm">Yangi versiya mavjud!</span>
+      <span className="text-sm">{t('pwaUpdateMsg')}</span>
       <button
         onClick={() => window.location.reload()}
         className="ml-4 rounded bg-white px-3 py-1 text-sm font-medium text-slate-800 hover:bg-slate-100 active:bg-slate-200"
       >
-        Yangilash
+        {t('pwaUpdateBtn')}
       </button>
     </div>
   );

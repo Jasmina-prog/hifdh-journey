@@ -237,7 +237,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="animate-pulse text-slate-400">Loading…</p>
+        <p className="animate-pulse text-slate-400">{t('loadingSession')}</p>
       </div>
     );
   }
