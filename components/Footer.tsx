@@ -16,11 +16,11 @@ function Divider() {
 export function Footer() {
   return (
     <footer className="w-full">
-      <div className="mx-auto w-full max-w-7xl px-6 lg:px-16">
+      <div className="mx-auto w-full max-w-400 px-6 lg:px-16">
         <Divider />
       </div>
 
-      <div className="mx-auto w-full max-w-7xl px-6 py-14 lg:px-16">
+      <div className="mx-auto w-full max-w-400 px-6 py-14 lg:px-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -31,15 +31,11 @@ export function Footer() {
 
           {/* Brand */}
           <div className="lg:col-span-1">
-            <div
-              className="h-14 w-14"
-              style={{
-                backgroundImage: 'url(/logo.png)',
-                backgroundSize: '165%',
-                backgroundPosition: 'center 46%',
-                backgroundRepeat: 'no-repeat',
-                filter: 'brightness(1.1) saturate(1.2)',
-              }}
+            <img
+              src="/logo.png"
+              alt="Hifdh Journey"
+              className="h-16 w-auto"
+              style={{ filter: 'brightness(1.1) saturate(1.2)' }}
             />
             <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
               A personal tool for Quran memorization, reflection, and daily consistency.

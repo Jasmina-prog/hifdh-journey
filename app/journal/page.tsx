@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -708,6 +709,7 @@ function WriteModal({ onSave, onClose }: {
 // ─── Inner Page ───────────────────────────────────────────────────────────────
 
 function JournalInner() {
+  const { loading: authLoading } = useRequireAuth();
   const searchParams = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -897,6 +899,14 @@ function JournalInner() {
   });
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="animate-pulse text-slate-400">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">

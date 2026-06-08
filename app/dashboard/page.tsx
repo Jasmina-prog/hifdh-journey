@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import { ProgressRing } from '@/components/ProgressRing';
 import { DuaCard } from '@/components/DuaCard';
 import { HadithCard } from '@/components/HadithCard';
@@ -104,6 +105,7 @@ function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
 }
 
 export default function DashboardPage() {
+  const { loading: authLoading } = useRequireAuth();
   const { t } = useTranslation('common');
   const [userName, setUserName] = useState(() => {
     try { return localStorage.getItem('hifdh-last-user-name') ?? ''; } catch { return ''; }
@@ -231,6 +233,14 @@ export default function DashboardPage() {
   }
 
   const dateString = showHijri ? formatHijri(today) : formatGregorian(today);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="animate-pulse text-slate-400">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">

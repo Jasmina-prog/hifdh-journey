@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   motion,
   useInView,
@@ -436,9 +437,31 @@ const stats = [
   { number: 52, suffix: '', label: 'Fridays', sub: 'dedicated review days a year' },
 ];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Route → readable name ────────────────────────────────────────────────────
 
-export default function Home() {
+const PAGE_NAMES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/map':       'Mushaf Map',
+  '/journal':   'Journal',
+  '/profile':   'Profile',
+};
+
+// ─── Page (inner — needs useSearchParams) ────────────────────────────────────
+
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // Freeze the initial value — router.replace() clears searchParams reactively,
+  // which would make the message vanish before the user reads it.
+  const [redirectFrom] = useState(() => searchParams.get('from') ?? '');
+  const pageName = PAGE_NAMES[redirectFrom] ?? 'that page';
+
+  // Clear the ?from param from the URL so it's gone on refresh
+  useEffect(() => {
+    if (redirectFrom) router.replace('/', { scroll: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // undefined = still resolving auth; null = signed out; User = signed in
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
@@ -450,20 +473,41 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const callbackUrl = (next?: string) =>
+    `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`;
+
+  const signIn = (next?: string) =>
+    supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: callbackUrl(next) },
+    });
+
+  const redirectBadge = redirectFrom && user === null && (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300"
+    >
+      <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
+        <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5V4.5a2 2 0 1 0-4 0V6h4Z" clipRule="evenodd" />
+      </svg>
+      Sign in to open your <span className="font-semibold">{pageName}</span>
+    </motion.div>
+  );
+
   const heroCta =
     user === undefined ? (
       <div className="h-[52px] w-44 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
     ) : user ? (
       <GoldButton href="/dashboard">Open Dashboard</GoldButton>
     ) : (
-      <GoldButton onClick={async () => {
-        await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: `${window.location.origin}/auth/callback` },
-        });
-      }}>
-        Sign in with Google
-      </GoldButton>
+      <div className="flex flex-col items-start gap-3">
+        {redirectBadge}
+        <GoldButton onClick={() => signIn(redirectFrom || undefined)}>
+          Sign in with Google
+        </GoldButton>
+      </div>
     );
 
   return (
@@ -692,23 +736,9 @@ export default function Home() {
                 <GoldButton href="/dashboard" dark>Open Dashboard</GoldButton>
               ) : (
                 <>
-                  <GoldButton
-                    dark
-                    onClick={async () => {
-                      await supabase.auth.signInWithOAuth({
-                        provider: 'google',
-                        options: { redirectTo: `${window.location.origin}/auth/callback` },
-                      });
-                    }}
-                  >
+                  <GoldButton dark onClick={() => signIn(redirectFrom || undefined)}>
                     Sign in with Google
                   </GoldButton>
-                  <Link
-                    href="/map"
-                    className="text-sm font-medium text-slate-400 underline underline-offset-4 transition hover:text-white"
-                  >
-                    Explore the Mushaf Map first
-                  </Link>
                 </>
               )}
             </motion.div>
@@ -717,5 +747,13 @@ export default function Home() {
       </section>
 
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
   );
 }

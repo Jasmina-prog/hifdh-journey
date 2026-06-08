@@ -3,9 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -115,6 +115,7 @@ function Divider() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const { loading: authLoading } = useRequireAuth();
   const [, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '', email: '', location: '', journeyStart: '',
@@ -187,6 +188,8 @@ export default function ProfilePage() {
     if (error) { setSaving(false); return; }
     // Refresh the local JWT so getSession() returns fresh metadata on next load
     await supabase.auth.refreshSession();
+    // Keep the dashboard's name cache in sync so it shows the new name immediately
+    try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
     setSaving(false);
     setSaved(true);
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -205,21 +208,10 @@ export default function ProfilePage() {
     window.location.replace('/');
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="animate-pulse text-slate-400">Loading…</p>
-      </div>
-    );
-  }
-
-  if (!profile.email) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-slate-500">Please sign in to view your profile.</p>
-        <Link href="/" className="rounded-2xl bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-700">
-          Go to Home
-        </Link>
       </div>
     );
   }

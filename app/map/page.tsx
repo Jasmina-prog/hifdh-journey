@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ const itemV = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transiti
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MapPage() {
+  const { loading: authLoading } = useRequireAuth();
   const { t } = useTranslation('common');
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -312,6 +314,14 @@ export default function MapPage() {
   const filteredSurahs = surahs.filter((s) => filter === 'all' || getStatus(s.number) === filter);
   const selectedMeta = selectedSurah ? surahs.find((s) => s.number === selectedSurah) : null;
   const selectedProgress = selectedSurah ? progress.get(selectedSurah) : null;
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="animate-pulse text-slate-400">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
