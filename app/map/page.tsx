@@ -266,11 +266,16 @@ export default function MapPage() {
   function handleStatusChange(status: Status) {
     setPanelStatus(status);
     if (!selectedSurah || !userId) return;
-    // Changing status counts as a review — reset last_reviewed so the 3-day
-    // weak-alert timer starts from NOW, not from some old date.
     const now = new Date().toISOString();
     updateProgress(selectedSurah, { status, last_reviewed: now });
     void robustUpsert(userId, selectedSurah, { status, notes: panelNotes, last_reviewed: now });
+    // Keep "where I left off" in sync with the surah being actively worked on
+    try {
+      localStorage.setItem(
+        `hifdh-last-session-${userId}`,
+        JSON.stringify({ surahNumber: selectedSurah, at: now }),
+      );
+    } catch {}
   }
 
   function handleNotesChange(notes: string) {

@@ -114,13 +114,6 @@ export default function DashboardPage() {
     try { return localStorage.getItem('hifdh-last-user-id'); } catch { return null; }
   });
   const [progressRows, setProgressRows] = useState<{ surah_number: number; status: string; last_reviewed: string | null }[]>([]);
-  const [lastSession, setLastSession] = useState<{ surahNumber: number; at: string } | null>(() => {
-    try {
-      const uid = localStorage.getItem('hifdh-last-user-id');
-      if (!uid) return null;
-      return JSON.parse(localStorage.getItem(`hifdh-last-session-${uid}`) || 'null');
-    } catch { return null; }
-  });
   const [showHijri, setShowHijri] = useState(false);
   const [manualJuz, setManualJuz] = useState<number | null>(null);
 
@@ -180,8 +173,6 @@ export default function DashboardPage() {
       setUserId(user.id);
       try {
         localStorage.setItem('hifdh-last-user-id', user.id);
-        const session = JSON.parse(localStorage.getItem(`hifdh-last-session-${user.id}`) || 'null');
-        if (session) setLastSession(session);
       } catch {}
       const name = extractName(user);
       setUserName(name);
@@ -307,7 +298,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.45, delay: 0.1 }}
             className="grid gap-10 lg:grid-cols-2"
           >
-            <LastSessionCard progressRows={progressRows} lastSession={lastSession} />
+            <LastSessionCard progressRows={progressRows} />
             <div className="flex h-full flex-col rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div>
                 <SectionLabel>{t('activity')}</SectionLabel>

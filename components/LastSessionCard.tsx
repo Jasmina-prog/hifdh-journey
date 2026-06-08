@@ -30,28 +30,19 @@ type ProgressRow = { surah_number: number; status: string; last_reviewed: string
 
 export function LastSessionCard({
   progressRows,
-  lastSession,
 }: {
   progressRows: ProgressRow[];
-  lastSession?: { surahNumber: number; at: string } | null;
 }) {
   const { t } = useTranslation('common');
 
-  // Use the explicitly bookmarked surah first; fall back to most recently
-  // touched surah with a non-default status.
-  const surahNumber: number | null = lastSession?.surahNumber ?? (
-    [...progressRows]
-      .filter((r) => r.status !== 'not_started')
-      .sort((a, b) => {
-        if (!a.last_reviewed && !b.last_reviewed) return 0;
-        if (!a.last_reviewed) return 1;
-        if (!b.last_reviewed) return -1;
-        return new Date(b.last_reviewed).getTime() - new Date(a.last_reviewed).getTime();
-      })[0]?.surah_number ?? null
-  );
+  // Mirror the "Recently Reviewed" strip on the map page: pick the surah
+  // with the most recent last_reviewed timestamp, regardless of status.
+  const mostRecent = [...progressRows]
+    .filter((r) => r.last_reviewed)
+    .sort((a, b) => new Date(b.last_reviewed!).getTime() - new Date(a.last_reviewed!).getTime())[0] ?? null;
 
-  const lastReviewed: string | null = lastSession?.at ??
-    progressRows.find((r) => r.surah_number === surahNumber)?.last_reviewed ?? null;
+  const surahNumber: number | null = mostRecent?.surah_number ?? null;
+  const lastReviewed: string | null = mostRecent?.last_reviewed ?? null;
   const surahName = surahNumber ? SURAH_NAMES[surahNumber - 1] : null;
   const juz = surahNumber ? SURAH_TO_JUZ[surahNumber] : null;
 
