@@ -473,13 +473,10 @@ function HomeContent() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const callbackUrl = (next?: string) =>
-    `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`;
-
-  const signIn = (next?: string) =>
+  const signIn = () =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: callbackUrl(next) },
+      options: { redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback` },
     });
 
   const redirectBadge = redirectFrom && user === null && (
@@ -504,7 +501,7 @@ function HomeContent() {
     ) : (
       <div className="flex flex-col items-start gap-3">
         {redirectBadge}
-        <GoldButton onClick={() => signIn(redirectFrom || undefined)}>
+        <GoldButton onClick={() => signIn()}>
           Sign in with Google
         </GoldButton>
       </div>
@@ -736,7 +733,7 @@ function HomeContent() {
                 <GoldButton href="/dashboard" dark>Open Dashboard</GoldButton>
               ) : (
                 <>
-                  <GoldButton dark onClick={() => signIn(redirectFrom || undefined)}>
+                  <GoldButton dark onClick={() => signIn()}>
                     Sign in with Google
                   </GoldButton>
                 </>

@@ -16,5 +16,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
+
   return <I18nextProvider i18n={i18n}>{children}</I18nextProvider>;
 }
