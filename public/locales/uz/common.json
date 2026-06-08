@@ -191,7 +191,7 @@
 
   "fridayResetEvery": "Har juma",
   "fridayResetTitle": "Juma Yangilanishi",
-  "fridayResetText": "Har juma faqat takrorlash uchun — yangi yodlash yo'q. Allaqachon bilgan suralaringizga, ayniqsa zaifroqlariga qayting. Maqsad tezlik emas, doimiylikdir. Har haftada bir kun mustahkamlash butun Qur'onni xotirangizda saqlab turadi.",
+  "fridayResetText": "Har juma yaxshi yodlanmagan suralar eslatiladi. Allaqachon bilgan suralaringizga, ayniqsa zaifroqlariga qayting. Maqsad tezlik emas, doimiylikdir. Har haftada bir kun mustahkamlash butun Qur'onni xotirangizda saqlab turadi.",
 
   "featuresTagline": "Kerakli hamma narsa",
   "featuresTitle": "Uzoq safaringiz uchun yaratilgan.",
@@ -210,5 +210,5 @@
 
   "ctaTagline": "Boshlash uchun eng yaxshi vaqt",
   "ctaTitle": "kecha edi.",
-  "ctaDesc": "Ikkinchi eng yaxshi vaqt endi. Kiring va boshlang — taraqqiyotingiz, jurnallingiz, Qur'on xaritangiz, hammasi bir joyda."
+  "ctaDesc": "Ikkinchi eng yaxshi vaqt hozir. Kiring va boshlang — taraqqiyotingiz, jurnalingiz, Qur'on xaritangiz, hammasi bir joyda."
 }
