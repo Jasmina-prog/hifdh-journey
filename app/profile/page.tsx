@@ -147,8 +147,22 @@ export default function ProfilePage() {
         .eq('id', user.id)
         .maybeSingle();
 
+      const resolvedName =
+        (profileRow?.full_name as string) ||
+        (meta.full_name as string) ||
+        (meta.name as string) ||
+        user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '';
+
+      // Ensure a row always exists in profiles on first load
+      if (!profileRow) {
+        await supabase.from('profiles').upsert(
+          { id: user.id, full_name: resolvedName },
+          { onConflict: 'id' },
+        );
+      }
+
       setProfile({
-        fullName:       (profileRow?.full_name as string) || (meta.full_name as string) || (meta.name as string) || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '',
+        fullName:       resolvedName,
         email:          user.email ?? '',
         location:       (meta.location as string) || '',
         journeyStart:   (meta.journey_start as string) || '',
