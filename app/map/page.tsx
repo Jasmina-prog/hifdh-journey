@@ -770,6 +770,7 @@ function SurahGrid({ surahs, progress, selected, onSelect, tNever, panelOpen }: 
 function JuzGrid({ surahs, progress, onSelect, selected }: {
   surahs: SurahMeta[]; progress: ProgressMap; onSelect: (n: number) => void; selected: number | null;
 }) {
+  const { t } = useTranslation('common');
   return (
     <motion.div variants={containerV} initial="hidden" animate="show"
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
