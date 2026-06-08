@@ -172,5 +172,43 @@
   "pinnedLabel": "Mahkamlangan",
   "autoLabel": "avto",
   "milestonePlaceholder": "mas. Al-Kahf surasini tugatdim",
-  "reflectionPlaceholder": "Bugun qalbingizda nima bor?"
+  "reflectionPlaceholder": "Bugun qalbingizda nima bor?",
+
+  "homeHeroTitle1": "Qur'on yodlashingiz,",
+  "homeHeroTitle2": "niyat bilan kuzatiladi.",
+  "homeHeroDesc": "Hifdh safaringiz uchun shaxsiy panel — kunlik yozuvlarni saqlang, 114 sura bo'ylab rivojlanishingizni ko'ring va qayerdaligingizni hech qachon yo'qotmang.",
+  "openDashboard": "Boshqaruvni ochish",
+  "signInWithGoogle": "Google orqali kirish",
+  "signInToOpenPage": "{{page}}ni ochish uchun kiring",
+  "thatPage": "u sahifani",
+
+  "statSurahsLabel": "Suralar",
+  "statSurahsSub": "barchasi vizual kuzatiladi",
+  "statJuzLabel": "Juz",
+  "statJuzSub": "har bir juz uchun taraqqiyot halqasi",
+  "statFridaysLabel": "Jumaliklar",
+  "statFridaysSub": "yiliga takrorlash kunlari",
+
+  "fridayResetEvery": "Har juma",
+  "fridayResetTitle": "Juma Yangilanishi",
+  "fridayResetText": "Har juma faqat takrorlash uchun — yangi yodlash yo'q. Allaqachon bilgan suralaringizga, ayniqsa zaifroqlariga qayting. Maqsad tezlik emas, doimiylikdir. Har haftada bir kun mustahkamlash butun Qur'onni xotirangizda saqlab turadi.",
+
+  "featuresTagline": "Kerakli hamma narsa",
+  "featuresTitle": "Uzoq safaringiz uchun yaratilgan.",
+  "featMushafMapTitle": "Mushaf Xaritasi",
+  "featMushafMapDesc": "114 suraning barchasi vizual ko'rinishda, holati bo'yicha rang-barang. Butun Qur'oningizni bir qarashda ko'ring.",
+  "featProgressRingsTitle": "Taraqqiyot Halqalari",
+  "featProgressRingsDesc": "Barcha 30 juz bo'ylab tugatilish halqalari. Safaringizda qayerdaligingizni aniq biling.",
+  "featJournalTitle": "Jurnal",
+  "featJournalDesc": "Sessiyalaringizni qayd eting, haftalik niyatlar belgilang va yodlayotgan oyatlar haqida fikrlar yozing.",
+  "featHeatmapTitle": "Faollik Diagrammasi",
+  "featHeatmapDesc": "Yodlash tarixi diagramma ko'rinishida — har kelganingiz belgilanadi.",
+  "featFridayResetTitle": "Juma Yangilanishi",
+  "featFridayResetDesc": "Har juma faqat takrorlash uchun. Oldinga davom etishdan oldin nima bilishingizni mustahkamlang.",
+  "featChecklistTitle": "Kunlik Ro'yxat",
+  "featChecklistDesc": "Toza kunlik ro'yxat odatni sodda saqlaydi. Belgilab qo'ying va o'z qismingizni bajarganingizni biling.",
+
+  "ctaTagline": "Boshlash uchun eng yaxshi vaqt",
+  "ctaTitle": "kecha edi.",
+  "ctaDesc": "Ikkinchi eng yaxshi vaqt endi. Kiring va boshlang — taraqqiyotingiz, jurnallingiz, Qur'on xaritangiz, hammasi bir joyda."
 }

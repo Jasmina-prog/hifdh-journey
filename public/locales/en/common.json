@@ -172,5 +172,43 @@
   "pinnedLabel": "Pinned",
   "autoLabel": "auto",
   "milestonePlaceholder": "e.g. Completed Surah Al-Kahf",
-  "reflectionPlaceholder": "What's on your heart today?"
+  "reflectionPlaceholder": "What's on your heart today?",
+
+  "homeHeroTitle1": "Your Quran memorization,",
+  "homeHeroTitle2": "tracked with intention.",
+  "homeHeroDesc": "A personal dashboard for your Hifdh journey — keep a daily log, visualize your progress across all 114 Surahs, and never lose track of where you are.",
+  "openDashboard": "Open Dashboard",
+  "signInWithGoogle": "Sign in with Google",
+  "signInToOpenPage": "Sign in to open your {{page}}",
+  "thatPage": "that page",
+
+  "statSurahsLabel": "Surahs",
+  "statSurahsSub": "all tracked visually",
+  "statJuzLabel": "Juz",
+  "statJuzSub": "one progress ring per Juz",
+  "statFridaysLabel": "Fridays",
+  "statFridaysSub": "dedicated review days a year",
+
+  "fridayResetEvery": "Every Friday",
+  "fridayResetTitle": "The Friday Reset",
+  "fridayResetText": "Every Friday is for review — no new memorization. Go back to the Surahs you already know, especially the weaker ones. The goal is not speed, it is permanence. One day of consolidation each week keeps the entire Quran alive in your memory.",
+
+  "featuresTagline": "Everything you need",
+  "featuresTitle": "Built for the long journey.",
+  "featMushafMapTitle": "Mushaf Map",
+  "featMushafMapDesc": "All 114 Surahs laid out visually, color-coded by status. See your whole Quran at a glance.",
+  "featProgressRingsTitle": "Progress Rings",
+  "featProgressRingsDesc": "Completion rings across all 30 Juz. Know exactly where you stand in your journey.",
+  "featJournalTitle": "Journal",
+  "featJournalDesc": "Log your sessions, set weekly intentions, and write reflections on the verses you're memorizing.",
+  "featHeatmapTitle": "Activity Heatmap",
+  "featHeatmapDesc": "Your memorization history as a heatmap — every day you show up gets marked.",
+  "featFridayResetTitle": "Friday Reset",
+  "featFridayResetDesc": "Every Friday is for review only. Solidify what you have before moving forward.",
+  "featChecklistTitle": "Daily Checklist",
+  "featChecklistDesc": "A clean daily checklist keeps the habit simple. Check it off and know you did your part.",
+
+  "ctaTagline": "The best time to start",
+  "ctaTitle": "was yesterday.",
+  "ctaDesc": "The second best time is now. Sign in and begin — your progress, your journal, your Quran map, all in one place."
 }

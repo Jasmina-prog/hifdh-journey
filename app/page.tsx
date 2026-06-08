@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   motion,
@@ -391,70 +392,42 @@ function ChecklistPreview() {
 // ─── Feature data ─────────────────────────────────────────────────────────────
 
 const features = [
-  {
-    title: 'Mushaf Map',
-    desc: 'All 114 Surahs laid out visually, color-coded by status. See your whole Quran at a glance.',
-    preview: <MushafPreview />,
-    link: '/map',
-  },
-  {
-    title: 'Progress Rings',
-    desc: "Completion rings across all 30 Juz. Know exactly where you stand in your journey.",
-    preview: <RingsPreview />,
-    link: '/dashboard',
-  },
-  {
-    title: 'Journal',
-    desc: "Log your sessions, set weekly intentions, and write reflections on the verses you're memorizing.",
-    preview: <JournalPreview />,
-    link: '/journal',
-  },
-  {
-    title: 'Activity Heatmap',
-    desc: "Your memorization history as a heatmap — every day you show up gets marked.",
-    preview: <HeatmapPreview />,
-    link: '/dashboard',
-  },
-  {
-    title: 'Friday Reset',
-    desc: "Every Friday is for review only. Solidify what you have before moving forward.",
-    preview: <FridayPreview />,
-    link: '/dashboard',
-  },
-  {
-    title: 'Daily Checklist',
-    desc: "A clean daily checklist keeps the habit simple. Check it off and know you did your part.",
-    preview: <ChecklistPreview />,
-    link: '/dashboard',
-  },
+  { titleKey: 'featMushafMapTitle',     descKey: 'featMushafMapDesc',     preview: <MushafPreview />,   link: '/map' },
+  { titleKey: 'featProgressRingsTitle', descKey: 'featProgressRingsDesc', preview: <RingsPreview />,    link: '/dashboard' },
+  { titleKey: 'featJournalTitle',       descKey: 'featJournalDesc',       preview: <JournalPreview />,  link: '/journal' },
+  { titleKey: 'featHeatmapTitle',       descKey: 'featHeatmapDesc',       preview: <HeatmapPreview />,  link: '/dashboard' },
+  { titleKey: 'featFridayResetTitle',   descKey: 'featFridayResetDesc',   preview: <FridayPreview />,   link: '/dashboard' },
+  { titleKey: 'featChecklistTitle',     descKey: 'featChecklistDesc',     preview: <ChecklistPreview />, link: '/dashboard' },
 ];
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 const stats = [
-  { number: 114, suffix: '', label: 'Surahs', sub: 'all tracked visually' },
-  { number: 30, suffix: '', label: 'Juz', sub: 'one progress ring per Juz' },
-  { number: 52, suffix: '', label: 'Fridays', sub: 'dedicated review days a year' },
+  { number: 114, suffix: '', labelKey: 'statSurahsLabel', subKey: 'statSurahsSub' },
+  { number: 30,  suffix: '', labelKey: 'statJuzLabel',    subKey: 'statJuzSub' },
+  { number: 52,  suffix: '', labelKey: 'statFridaysLabel', subKey: 'statFridaysSub' },
 ];
 
-// ─── Route → readable name ────────────────────────────────────────────────────
+// ─── Route → translation key ──────────────────────────────────────────────────
 
-const PAGE_NAMES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/map':       'Mushaf Map',
-  '/journal':   'Journal',
-  '/profile':   'Profile',
+const PAGE_NAME_KEYS: Record<string, string> = {
+  '/dashboard': 'navDashboard',
+  '/map':       'mushafMap',
+  '/journal':   'navJournal',
+  '/profile':   'profile',
 };
 
 // ─── Page (inner — needs useSearchParams) ────────────────────────────────────
 
 function HomeContent() {
+  const { t } = useTranslation('common');
   const searchParams = useSearchParams();
   const router = useRouter();
   // Freeze the initial value — router.replace() clears searchParams reactively,
   // which would make the message vanish before the user reads it.
   const [redirectFrom] = useState(() => searchParams.get('from') ?? '');
-  const pageName = PAGE_NAMES[redirectFrom] ?? 'that page';
+  const pageNameKey = PAGE_NAME_KEYS[redirectFrom];
+  const pageName = pageNameKey ? t(pageNameKey) : t('thatPage');
 
   // Clear the ?from param from the URL so it's gone on refresh
   useEffect(() => {
@@ -489,7 +462,7 @@ function HomeContent() {
       <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden>
         <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5V4.5a2 2 0 1 0-4 0V6h4Z" clipRule="evenodd" />
       </svg>
-      Sign in to open your <span className="font-semibold">{pageName}</span>
+      {t('signInToOpenPage', { page: pageName })}
     </motion.div>
   );
 
@@ -497,12 +470,12 @@ function HomeContent() {
     user === undefined ? (
       <div className="h-[52px] w-44 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
     ) : user ? (
-      <GoldButton href="/dashboard">Open Dashboard</GoldButton>
+      <GoldButton href="/dashboard">{t('openDashboard')}</GoldButton>
     ) : (
       <div className="flex flex-col items-start gap-3">
         {redirectBadge}
         <GoldButton onClick={() => signIn()}>
-          Sign in with Google
+          {t('signInWithGoogle')}
         </GoldButton>
       </div>
     );
@@ -527,7 +500,7 @@ function HomeContent() {
             variants={fadeUp}
             className="mt-10 text-[clamp(2.8rem,6vw,5.5rem)] font-semibold leading-[1.08] tracking-tight text-slate-900 dark:text-white"
           >
-            Your Quran memorization,
+            {t('homeHeroTitle1')}
             <br />
             <motion.span
               style={goldGradientText}
@@ -535,7 +508,7 @@ function HomeContent() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.45, ease }}
             >
-              tracked with intention.
+              {t('homeHeroTitle2')}
             </motion.span>
           </motion.h1>
 
@@ -543,7 +516,7 @@ function HomeContent() {
             variants={fadeUp}
             className="mt-7 max-w-2xl text-lg leading-8 text-slate-500 dark:text-slate-400"
           >
-            A personal dashboard for your Hifdh journey — keep a daily log, visualize your progress across all 114 Surahs, and never lose track of where you are.
+            {t('homeHeroDesc')}
           </motion.p>
 
           <motion.div variants={fadeUp} className="mt-10">
@@ -565,15 +538,15 @@ function HomeContent() {
         >
           {stats.map((s, i) => (
             <motion.div
-              key={s.label}
+              key={s.labelKey}
               variants={i === 0 ? fadeLeft : i === 2 ? fadeRight : scaleIn}
             >
               <TiltCard className="rounded-[1.75rem] border border-slate-200/80 bg-white p-10 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[5rem] font-bold leading-none tracking-tighter" style={goldGradientText}>
                   <CountUp to={s.number} suffix={s.suffix} />
                 </div>
-                <div className="mt-3 text-xl font-semibold text-slate-900 dark:text-white">{s.label}</div>
-                <div className="mt-1 text-sm text-slate-400 dark:text-slate-500">{s.sub}</div>
+                <div className="mt-3 text-xl font-semibold text-slate-900 dark:text-white">{t(s.labelKey)}</div>
+                <div className="mt-1 text-sm text-slate-400 dark:text-slate-500">{t(s.subKey)}</div>
               </TiltCard>
             </motion.div>
           ))}
@@ -601,15 +574,15 @@ function HomeContent() {
 
           <div className="relative shrink-0">
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-              Every Friday
+              {t('fridayResetEvery')}
             </p>
             <h2 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white lg:text-4xl">
-              The Friday Reset
+              {t('fridayResetTitle')}
             </h2>
           </div>
 
           <p className="relative mt-6 text-base leading-7 text-slate-500 dark:text-slate-400 lg:mt-0">
-            Every Friday is for review — no new memorization. Go back to the Surahs you already know, especially the weaker ones. The goal is not speed, it is permanence. One day of consolidation each week keeps the entire Quran alive in your memory.
+            {t('fridayResetText')}
           </p>
         </motion.div>
       </section>
@@ -625,10 +598,10 @@ function HomeContent() {
           viewport={{ once: false }}
         >
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500">
-            Everything you need
+            {t('featuresTagline')}
           </p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white lg:text-4xl">
-            Built for the long journey.
+            {t('featuresTitle')}
           </h2>
         </motion.div>
 
@@ -642,10 +615,10 @@ function HomeContent() {
           {features.map((f, i) => {
             const dir = i % 3 === 0 ? fadeLeft : i % 3 === 2 ? fadeRight : fadeUp;
             return (
-              <motion.div key={f.title} variants={dir} className="h-full">
+              <motion.div key={f.titleKey} variants={dir} className="h-full">
                 <FeatureCard preview={f.preview}>
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">{f.title}</h3>
-                  <p className="mt-1.5 text-sm leading-6 text-slate-500 dark:text-slate-400">{f.desc}</p>
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">{t(f.titleKey)}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-slate-500 dark:text-slate-400">{t(f.descKey)}</p>
                 </FeatureCard>
               </motion.div>
             );
@@ -705,9 +678,9 @@ function HomeContent() {
               viewport={{ once: false }}
               transition={{ duration: 0.7, ease }}
             >
-              <span style={goldGradientText}>The best time to start</span>
+              <span style={goldGradientText}>{t('ctaTagline')}</span>
               <br />
-              <span className="text-white">was yesterday.</span>
+              <span className="text-white">{t('ctaTitle')}</span>
             </motion.h2>
 
             <motion.p
@@ -717,7 +690,7 @@ function HomeContent() {
               viewport={{ once: false }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              The second best time is now. Sign in and begin — your progress, your journal, your Quran map, all in one place.
+              {t('ctaDesc')}
             </motion.p>
 
             <motion.div
@@ -730,11 +703,11 @@ function HomeContent() {
               {user === undefined ? (
                 <div className="h-[52px] w-48 animate-pulse rounded-full bg-white/10" />
               ) : user ? (
-                <GoldButton href="/dashboard" dark>Open Dashboard</GoldButton>
+                <GoldButton href="/dashboard" dark>{t('openDashboard')}</GoldButton>
               ) : (
                 <>
                   <GoldButton dark onClick={() => signIn()}>
-                    Sign in with Google
+                    {t('signInWithGoogle')}
                   </GoldButton>
                 </>
               )}

@@ -193,7 +193,7 @@ export function Navbar() {
             <button
               onClick={handleSignIn}
               disabled={signingIn}
-              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60"
+              className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white transition disabled:opacity-60 whitespace-nowrap"
               style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}
             >
               {signingIn ? '…' : t('signIn')}
