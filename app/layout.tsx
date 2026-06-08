@@ -7,6 +7,7 @@ import { FeedbackWidget } from '@/components/FeedbackWidget';
 import { Providers } from '@/components/Providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { IslamicPattern } from '@/components/IslamicPattern';
+import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -46,6 +47,7 @@ export default function RootLayout({
             <main className="flex min-h-[calc(100vh-5.5rem)] flex-col">{children}</main>
             <Footer />
             <FeedbackWidget />
+            <PwaUpdateBanner />
           </Providers>
         </ThemeProvider>
       </body>
