@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { useMonthlyTasksYear, useCreateMonthlyTask, useUpdateMonthlyTask, useDeleteMonthlyTask } from '@/lib/queries/monthlyTasks';
+import type { MonthlyTask } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Task = { id: string; title: string; completed: boolean; month: string };
+type Task = MonthlyTask;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -206,124 +207,48 @@ function TaskRow({ task, editable, onToggle, onDelete, onEdit }: {
 export function MonthlyTasks({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation('common');
   const locale = i18n.language;
-  const [allTasks,     setAllTasks]     = useState<Task[]>([]);
   const [viewingMonth, setViewingMonth] = useState(currentMonthKey());
   const [input,        setInput]        = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const year   = currentYear();
   const curKey = currentMonthKey();
 
-  // ── Load full year ──────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const cacheKey = `hifdh-monthly-year-${userId ?? 'guest'}-${year}`;
-    try {
-      const raw = localStorage.getItem(cacheKey);
-      if (raw) setAllTasks(JSON.parse(raw));
-    } catch {}
-
-    if (!userId) return;
-
-    supabase
-      .from('monthly_tasks')
-      .select('id,title,completed,month')
-      .eq('user_id', userId)
-      .gte('month', `${year}-01`)
-      .lte('month', `${year}-12`)
-      .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        if (data) {
-          const fetched = data as Task[];
-          try { localStorage.setItem(cacheKey, JSON.stringify(fetched)); } catch {}
-          setAllTasks((prev) => {
-            // Preserve any optimistic (local-*) tasks that are still in-flight
-            const pending = prev.filter((t) => t.id.startsWith('local-'));
-            return pending.length > 0 ? [...fetched, ...pending] : fetched;
-          });
-        }
-      });
-  }, [userId, year]);
-
-  // ── Persist helper ──────────────────────────────────────────────────────────
-
-  function persist(updated: Task[]) {
-    setAllTasks(updated);
-    try {
-      localStorage.setItem(`hifdh-monthly-year-${userId ?? 'guest'}-${year}`, JSON.stringify(updated));
-    } catch {}
-  }
+  const { data: allTasks = [] } = useMonthlyTasksYear(year, !!userId);
+  const createTaskMutation = useCreateMonthlyTask();
+  const updateTaskMutation = useUpdateMonthlyTask();
+  const deleteTaskMutation = useDeleteMonthlyTask();
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
 
   async function addTask() {
     const title = input.trim();
-    if (!title) return;
-    const tempId = `local-${Date.now()}`;
-    const newTask: Task = { id: tempId, title, completed: false, month: viewingMonth };
-    const cacheKey = `hifdh-monthly-year-${userId ?? 'guest'}-${year}`;
-
-    // Optimistic insert — functional update avoids stale-closure overwrite
-    setAllTasks((prev) => {
-      const updated = [...prev, newTask];
-      try { localStorage.setItem(cacheKey, JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+    if (!title || !userId) return;
     setInput('');
     inputRef.current?.focus();
-
-    if (!userId) return;
-
-    const { data, error } = await supabase
-      .from('monthly_tasks')
-      .insert({ user_id: userId, month: viewingMonth, title, completed: false })
-      .select('id,title,completed,month')
-      .single();
-
-    if (error || !data) {
-      console.error('monthly_tasks insert error:', error);
-      setAllTasks((prev) => {
-        const rolled = prev.filter((t) => t.id !== tempId);
-        try { localStorage.setItem(cacheKey, JSON.stringify(rolled)); } catch {}
-        return rolled;
-      });
-      return;
-    }
-
-    setAllTasks((prev) => {
-      const pending = prev.find((t) => t.id === tempId);
-      if (!pending) {
-        // Task was deleted while insert was in-flight — undo DB record
-        supabase.from('monthly_tasks').delete().eq('id', (data as Task).id).eq('user_id', userId);
-        return prev;
-      }
-      // Preserve any local state changes (e.g. toggle while insert was in-flight)
-      const updated = prev.map((t) =>
-        t.id === tempId ? { ...(data as Task), completed: pending.completed } : t,
-      );
-      try { localStorage.setItem(cacheKey, JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+    try {
+      await createTaskMutation.mutateAsync({ month: viewingMonth, title });
+    } catch {}
   }
 
   async function toggleTask(task: Task) {
-    persist(allTasks.map((t) => t.id === task.id ? { ...t, completed: !t.completed } : t));
-    if (userId && !task.id.startsWith('local-')) {
-      await supabase.from('monthly_tasks').update({ completed: !task.completed }).eq('id', task.id).eq('user_id', userId);
-    }
+    if (!userId || task.id.startsWith('temp-')) return;
+    try {
+      await updateTaskMutation.mutateAsync({ id: task.id, patch: { completed: !task.completed } });
+    } catch {}
   }
 
   async function editTask(task: Task, title: string) {
-    persist(allTasks.map((t) => t.id === task.id ? { ...t, title } : t));
-    if (userId && !task.id.startsWith('local-')) {
-      await supabase.from('monthly_tasks').update({ title }).eq('id', task.id).eq('user_id', userId);
-    }
+    if (!userId || task.id.startsWith('temp-')) return;
+    try {
+      await updateTaskMutation.mutateAsync({ id: task.id, patch: { title } });
+    } catch {}
   }
 
   async function deleteTask(id: string) {
-    persist(allTasks.filter((t) => t.id !== id));
-    if (userId && !id.startsWith('local-')) {
-      await supabase.from('monthly_tasks').delete().eq('id', id).eq('user_id', userId);
-    }
+    if (!userId || id.startsWith('temp-')) return;
+    try {
+      await deleteTaskMutation.mutateAsync(id);
+    } catch {}
   }
 
   // ── Derived ─────────────────────────────────────────────────────────────────

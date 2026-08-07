@@ -2,9 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/lib/supabase';
+import {
+  useWeeklyIntentions,
+  useCreateWeeklyIntention,
+  useUpdateWeeklyIntention,
+  useDeleteWeeklyIntention,
+} from '@/lib/queries/weeklyIntentions';
+import type { WeeklyIntention } from '@/lib/types';
 
-type Task = { id: string; text: string; done: boolean };
+type Task = WeeklyIntention;
 
 function getWeekKey(): string {
   const d = new Date();
@@ -19,7 +25,6 @@ type Props = {
 
 export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
   const { t } = useTranslation('common');
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -28,93 +33,39 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
   onStatsRef.current = onStatsChange;
 
   const week = getWeekKey();
-  const storageKey = `hifdh-intentions-${userId ?? 'guest'}-${week}`;
+  const { data } = useWeeklyIntentions(week, !!userId);
+  const tasks = data?.data ?? [];
+
+  const createMutation = useCreateWeeklyIntention();
+  const updateMutation = useUpdateWeeklyIntention();
+  const deleteMutation = useDeleteWeeklyIntention();
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const loaded: Task[] = JSON.parse(raw);
-        setTasks(loaded);
-        onStatsRef.current?.(loaded.filter((t) => t.done).length, loaded.length);
-      }
-    } catch {}
-
-    if (userId) {
-      supabase
-        .from('weekly_intentions')
-        .select('id, text, done')
-        .eq('user_id', userId)
-        .eq('week', week)
-        .order('created_at', { ascending: true })
-        .then(({ data, error }) => {
-          if (!error && data) {
-            const fetched = data as Task[];
-            try { localStorage.setItem(storageKey, JSON.stringify(fetched)); } catch {}
-            setTasks((prev) => {
-              const pending = prev.filter((t) => t.id.startsWith('local-'));
-              return pending.length > 0 ? [...fetched, ...pending] : fetched;
-            });
-            onStatsRef.current?.(fetched.filter((t) => t.done).length, fetched.length);
-          }
-        });
-    }
-  }, [userId, week, storageKey]);
-
-  function syncState(updater: (prev: Task[]) => Task[]) {
-    setTasks((prev) => {
-      const next = updater(prev);
-      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
-      onStatsRef.current?.(next.filter((t) => t.done).length, next.length);
-      return next;
-    });
-  }
+    onStatsRef.current?.(tasks.filter((t) => t.done).length, tasks.length);
+  }, [tasks]);
 
   async function addTask() {
     const text = input.trim();
-    if (!text) return;
-
-    const tempId = `local-${Date.now()}`;
-    syncState((prev) => [...prev, { id: tempId, text, done: false }]);
+    if (!text || !userId) return;
     setInput('');
     inputRef.current?.focus();
-
-    if (!userId) return;
-
-    const { data, error } = await supabase
-      .from('weekly_intentions')
-      .insert({ user_id: userId, week, text, done: false })
-      .select('id, text, done')
-      .single();
-
-    if (error || !data) {
-      syncState((prev) => prev.filter((t) => t.id !== tempId));
-      return;
-    }
-
-    syncState((prev) => {
-      const pending = prev.find((t) => t.id === tempId);
-      if (!pending) {
-        supabase.from('weekly_intentions').delete().eq('id', (data as Task).id).eq('user_id', userId);
-        return prev;
-      }
-      return prev.map((t) => (t.id === tempId ? { ...(data as Task), done: pending.done } : t));
-    });
+    try {
+      await createMutation.mutateAsync({ week, text });
+    } catch {}
   }
 
   async function toggleDone(task: Task) {
-    const newDone = !task.done;
-    syncState((prev) => prev.map((t) => (t.id === task.id ? { ...t, done: newDone } : t)));
-    if (userId && !task.id.startsWith('local-')) {
-      await supabase.from('weekly_intentions').update({ done: newDone }).eq('id', task.id).eq('user_id', userId);
-    }
+    if (!userId || task.id.startsWith('temp-')) return;
+    try {
+      await updateMutation.mutateAsync({ id: task.id, patch: { done: !task.done } });
+    } catch {}
   }
 
   async function deleteTask(id: string) {
-    syncState((prev) => prev.filter((t) => t.id !== id));
-    if (userId && !id.startsWith('local-')) {
-      await supabase.from('weekly_intentions').delete().eq('id', id).eq('user_id', userId);
-    }
+    if (!userId || id.startsWith('temp-')) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch {}
   }
 
   function startEdit(task: Task) {
@@ -129,17 +80,15 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
     const text = editText.trim();
     setEditingId(null); // clear immediately so UI unblocks before any await
 
-    if (!text) {
-      syncState((prev) => prev.filter((t) => t.id !== id));
-      if (userId && !id.startsWith('local-')) {
-        await supabase.from('weekly_intentions').delete().eq('id', id).eq('user_id', userId);
+    if (!userId || id.startsWith('temp-')) return;
+
+    try {
+      if (!text) {
+        await deleteMutation.mutateAsync(id);
+      } else {
+        await updateMutation.mutateAsync({ id, patch: { text } });
       }
-    } else {
-      syncState((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
-      if (userId && !id.startsWith('local-')) {
-        await supabase.from('weekly_intentions').update({ text }).eq('id', id).eq('user_id', userId);
-      }
-    }
+    } catch {}
   }
 
   const done = tasks.filter((t) => t.done).length;

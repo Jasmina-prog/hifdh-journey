@@ -5,8 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import { useSurahProgress } from '@/lib/queries/surahProgress';
 import { ProgressRing } from '@/components/ProgressRing';
 import { DuaCard } from '@/components/DuaCard';
 import { HadithCard } from '@/components/HadithCard';
@@ -78,24 +79,24 @@ function Divider() {
   );
 }
 
-type ProgressRow = { surah_number: number; status: string; last_reviewed: string | null };
+type ProgressRow = { surahNumber: number; status: string; lastReviewed: string | null };
 
-// Merge Supabase/dashboard-cache rows with the map page's localStorage cache.
-// For each surah, keeps whichever entry has the newer last_reviewed so that
+// Merge API/dashboard-cache rows with the map page's localStorage cache.
+// For each surah, keeps whichever entry has the newer lastReviewed so that
 // "Mark as Last Read" changes on the map page are reflected immediately.
 function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
   try {
     const raw = localStorage.getItem(`hifdh-map-progress-${uid}`);
     if (!raw) return rows;
-    const mapCache = JSON.parse(raw) as Record<string, { status: string; last_reviewed: string | null }>;
-    const map = new Map<number, ProgressRow>(rows.map((r) => [r.surah_number, r]));
+    const mapCache = JSON.parse(raw) as Record<string, { status: string; lastReviewed: string | null }>;
+    const map = new Map<number, ProgressRow>(rows.map((r) => [r.surahNumber, r]));
     for (const [key, entry] of Object.entries(mapCache)) {
       const num = Number(key);
       const existing = map.get(num);
-      const existingTime = existing?.last_reviewed ? new Date(existing.last_reviewed).getTime() : 0;
-      const entryTime = entry.last_reviewed ? new Date(entry.last_reviewed).getTime() : 0;
+      const existingTime = existing?.lastReviewed ? new Date(existing.lastReviewed).getTime() : 0;
+      const entryTime = entry.lastReviewed ? new Date(entry.lastReviewed).getTime() : 0;
       if (!existing || entryTime > existingTime) {
-        map.set(num, { surah_number: num, status: entry.status, last_reviewed: entry.last_reviewed });
+        map.set(num, { surahNumber: num, status: entry.status, lastReviewed: entry.lastReviewed });
       }
     }
     return [...map.values()];
@@ -106,6 +107,7 @@ function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
 
 export default function DashboardPage() {
   const { loading: authLoading } = useRequireAuth();
+  const { user } = useAuth();
   const { t } = useTranslation('common');
   const [userName, setUserName] = useState(() => {
     try { return localStorage.getItem('hifdh-last-user-name') ?? ''; } catch { return ''; }
@@ -113,7 +115,7 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState<string | null>(() => {
     try { return localStorage.getItem('hifdh-last-user-id'); } catch { return null; }
   });
-  const [progressRows, setProgressRows] = useState<{ surah_number: number; status: string; last_reviewed: string | null }[]>([]);
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
   const [showHijri, setShowHijri] = useState(false);
   const [manualJuz, setManualJuz] = useState<number | null>(null);
 
@@ -124,6 +126,8 @@ export default function DashboardPage() {
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
 
+  const { data: progressData } = useSurahProgress({}, !!user);
+
   useEffect(() => {
     // Restore manual juz selection from localStorage
     try {
@@ -133,7 +137,7 @@ export default function DashboardPage() {
 
     // Load cached data synchronously before any network call so rings appear instantly.
     // Also merge with the map page's localStorage cache so recent "mark as last read"
-    // changes appear even before the Supabase fetch completes.
+    // changes appear even before the API fetch completes.
     try {
       const cachedUid = localStorage.getItem('hifdh-last-user-id');
       if (cachedUid) {
@@ -143,69 +147,43 @@ export default function DashboardPage() {
         }
       }
     } catch {}
-
-    function extractName(user: { user_metadata?: Record<string, unknown>; email?: string }) {
-      return (
-        (user.user_metadata?.full_name as string) ||
-        (user.user_metadata?.name as string) ||
-        user.email?.split('@')[0].replace(/[._\-]+/g, ' ') ||
-        ''
-      );
-    }
-
-    async function load() {
-      // getSession() reads from local storage — no network round-trip
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUserId(session.user.id);
-        try { localStorage.setItem('hifdh-last-user-id', session.user.id); } catch {}
-        const name = extractName(session.user);
-        if (name) {
-          setUserName(name);
-          try { localStorage.setItem('hifdh-last-user-name', name); } catch {}
-        }
-      }
-
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData?.user;
-      if (!user) return;
-
-      setUserId(user.id);
-      try {
-        localStorage.setItem('hifdh-last-user-id', user.id);
-      } catch {}
-      const name = extractName(user);
-      setUserName(name);
-      try { if (name) localStorage.setItem('hifdh-last-user-name', name); } catch {}
-
-      const { data: progressData } = await supabase
-        .from('surah_progress')
-        .select('surah_number,status,last_reviewed')
-        .eq('user_id', user.id);
-
-      const newProgress = progressData as { surah_number: number; status: string; last_reviewed: string | null }[] | null;
-
-      if (newProgress) {
-        // Merge Supabase result with map page's localStorage so local changes win
-        // when Supabase hasn't received them yet.
-        const merged = mergeWithMapCache(user.id, newProgress);
-        setProgressRows(merged);
-        try {
-          localStorage.setItem(`hifdh-dash-${user.id}`, JSON.stringify({ progressRows: merged }));
-        } catch {}
-      }
-    }
-    load();
   }, [todayKey]);
 
+  useEffect(() => {
+    if (!user) return;
+    setUserId(user.id);
+    try { localStorage.setItem('hifdh-last-user-id', user.id); } catch {}
+    const name = user.profile?.fullName || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '';
+    if (name) {
+      setUserName(name);
+      try { localStorage.setItem('hifdh-last-user-name', name); } catch {}
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !progressData) return;
+    const rows: ProgressRow[] = progressData.data.map((r) => ({
+      surahNumber: r.surahNumber,
+      status: r.status,
+      lastReviewed: r.lastReviewed,
+    }));
+    // Merge API result with map page's localStorage so local changes win
+    // when the API hasn't received them yet.
+    const merged = mergeWithMapCache(user.id, rows);
+    setProgressRows(merged);
+    try {
+      localStorage.setItem(`hifdh-dash-${user.id}`, JSON.stringify({ progressRows: merged }));
+    } catch {}
+  }, [user, progressData]);
+
   // Ring calculations
-  const memorizedSurahs = progressRows.filter((r) => r.status === 'memorized').map((r) => r.surah_number);
+  const memorizedSurahs = progressRows.filter((r) => r.status === 'memorized').map((r) => r.surahNumber);
   const ring1 = Math.min(100, Math.round((memorizedSurahs.length / 114) * 100));
 
   const mostRecent = [...progressRows]
-    .filter((r) => r.last_reviewed)
-    .sort((a, b) => new Date(b.last_reviewed!).getTime() - new Date(a.last_reviewed!).getTime())[0];
-  const autoJuz = mostRecent ? (SURAH_TO_JUZ[mostRecent.surah_number] ?? 1) : 1;
+    .filter((r) => r.lastReviewed)
+    .sort((a, b) => new Date(b.lastReviewed!).getTime() - new Date(a.lastReviewed!).getTime())[0];
+  const autoJuz = mostRecent ? (SURAH_TO_JUZ[mostRecent.surahNumber] ?? 1) : 1;
   const currentJuz = manualJuz ?? autoJuz;
   const juzSurahs = JUZ_TO_SURAHS[currentJuz] ?? [];
   const memorizedSet = new Set(memorizedSurahs);

@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from './ThemeProvider';
 import { IslamicThemeToggle } from './IslamicToggle';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { useAuth } from './AuthProvider';
 
 const NAV_KEYS = [
   { href: '/', key: 'navHome' },
@@ -87,24 +86,12 @@ export function Navbar() {
   const { t, i18n } = useTranslation('common');
   const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, login } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleSignIn = async () => {
+  const handleSignIn = () => {
     setSigningIn(true);
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setSigningIn(false);
+    login();
   };
 
   const changeLanguage = (lng: string) => {

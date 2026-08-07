@@ -14,7 +14,7 @@
   "estimatedCompletion": "Estimated completion date",
   "dailyTrio": "Daily Trio",
   "sabaqSabqiManzil": "Sabaq · Sabqi · Manzil",
-  "trackerDesc": "Each check saves instantly to your Supabase progress table. The tracker remembers today's session automatically.",
+  "trackerDesc": "Each check saves instantly to your progress. The tracker remembers today's session automatically.",
   "todayComplete": "Today is complete!",
   "keepMomentum": "Keep this momentum and use Friday for review.",
   "quickActions": "Quick actions",

@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 
 type ProgressRow = {
-  last_reviewed: string | null;
+  lastReviewed: string | null;
 };
 
 const LEVEL_CLASSES: Record<0 | 1 | 2 | 3 | 4, string> = {
@@ -36,8 +36,8 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
   // Count surahs reviewed per day
   const activityMap = new Map<string, number>();
   for (const row of progressRows) {
-    if (row.last_reviewed) {
-      const date = row.last_reviewed.slice(0, 10);
+    if (row.lastReviewed) {
+      const date = row.lastReviewed.slice(0, 10);
       activityMap.set(date, (activityMap.get(date) ?? 0) + 1);
     }
   }

@@ -12,8 +12,7 @@ import {
   animate,
 } from 'framer-motion';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { useAuth } from '@/components/AuthProvider';
 
 // ─── Animation helpers ────────────────────────────────────────────────────────
 
@@ -435,24 +434,13 @@ function HomeContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // undefined = still resolving auth; null = signed out; User = signed in
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const { user, isLoading, login } = useAuth();
+  // undefined = still resolving auth; null = signed out; user = signed in
+  const authState = isLoading ? undefined : user;
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  const signIn = () => login();
 
-  const signIn = () =>
-    supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback` },
-    });
-
-  const redirectBadge = redirectFrom && user === null && (
+  const redirectBadge = redirectFrom && authState === null && (
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -467,9 +455,9 @@ function HomeContent() {
   );
 
   const heroCta =
-    user === undefined ? (
+    authState === undefined ? (
       <div className="h-[52px] w-44 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-    ) : user ? (
+    ) : authState ? (
       <GoldButton href="/dashboard">{t('openDashboard')}</GoldButton>
     ) : (
       <div className="flex flex-col items-start gap-3">
@@ -700,9 +688,9 @@ function HomeContent() {
               viewport={{ once: false }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
-              {user === undefined ? (
+              {authState === undefined ? (
                 <div className="h-[52px] w-48 animate-pulse rounded-full bg-white/10" />
-              ) : user ? (
+              ) : authState ? (
                 <GoldButton href="/dashboard" dark>{t('openDashboard')}</GoldButton>
               ) : (
                 <>

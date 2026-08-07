@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import { useSurahProgress, useUpsertSurahProgress } from '@/lib/queries/surahProgress';
+import { useJournalEntries } from '@/lib/queries/journalEntries';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,11 +25,11 @@ type SurahMeta = {
 };
 
 type SurahProgress = {
-  surah_number: number;
+  id?: string;
+  surahNumber: number;
   status: Status;
   notes: string;
-  last_reviewed: string | null;
-  confidence: number;
+  lastReviewed: string | null;
 };
 
 type ProgressMap = Map<number, SurahProgress>;
@@ -63,37 +65,6 @@ function saveLocalProgress(uid: string, map: ProgressMap) {
     map.forEach((v, k) => { obj[String(k)] = v; });
     localStorage.setItem(progressKey(uid), JSON.stringify(obj));
   } catch {}
-}
-
-// ─── Robust upsert (works without DB migration / unique constraint) ───────────
-
-async function robustUpsert(
-  uid: string,
-  surahNumber: number,
-  patch: Partial<SurahProgress>,
-): Promise<{ ok: boolean }> {
-  const { error: e1 } = await supabase
-    .from('surah_progress')
-    .upsert({ user_id: uid, surah_number: surahNumber, ...patch }, { onConflict: 'user_id,surah_number' });
-  if (!e1) return { ok: true };
-
-  const { data: existing } = await supabase
-    .from('surah_progress').select('id')
-    .eq('user_id', uid).eq('surah_number', surahNumber).maybeSingle();
-
-  const safeBase = { last_reviewed: (patch as { last_reviewed?: string }).last_reviewed ?? new Date().toISOString() };
-  const full = { ...safeBase, ...patch };
-
-  if (existing) {
-    const { error: e2 } = await supabase.from('surah_progress').update(full).eq('id', (existing as { id: string }).id);
-    if (!e2) return { ok: true };
-    await supabase.from('surah_progress').update(safeBase).eq('id', (existing as { id: string }).id);
-  } else {
-    const { error: e2 } = await supabase.from('surah_progress').insert({ user_id: uid, surah_number: surahNumber, ...full });
-    if (!e2) return { ok: true };
-    await supabase.from('surah_progress').insert({ user_id: uid, surah_number: surahNumber, ...safeBase });
-  }
-  return { ok: false };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -139,6 +110,8 @@ export default function MapPage() {
   const notesTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedReset = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { user } = useAuth();
+
   // ── Hydration-safe localStorage load ──
   useEffect(() => {
     const uid = getCachedUserId();
@@ -147,17 +120,19 @@ export default function MapPage() {
       const local = loadLocalProgress(uid);
       if (local.size > 0) setProgress(local);
     }
-    supabase.auth.getSession().then(({ data }) => {
-      const id = data.session?.user.id ?? null;
-      if (!id) return;
-      try { localStorage.setItem(USER_ID_KEY, id); } catch {}
-      if (id !== uid) {
-        setUserId(id);
-        const local = loadLocalProgress(id);
-        if (local.size > 0) setProgress(local);
-      }
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    try { localStorage.setItem(USER_ID_KEY, user.id); } catch {}
+    setUserId((prev) => (prev === user.id ? prev : user.id));
+  }, [user]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const local = loadLocalProgress(userId);
+    if (local.size > 0) setProgress(local);
+  }, [userId]);
 
   // ── Surah metadata ──
   useEffect(() => {
@@ -188,33 +163,34 @@ export default function MapPage() {
     load();
   }, []);
 
-  // ── Supabase sync ──
+  // ── API sync ──
+  const { data: progressData } = useSurahProgress({}, !!userId);
+  const upsertProgress = useUpsertSurahProgress();
+
   useEffect(() => {
-    if (!userId) return;
-    supabase.from('surah_progress')
-      .select('surah_number, status, notes, last_reviewed, confidence')
-      .eq('user_id', userId)
-      .then(({ data }) => {
-        if (!data?.length) return;
-        // Merge: keep whichever entry has a newer last_reviewed so local
-        // changes made before the fetch completes are never overwritten.
-        setProgress((prev) => {
-          const next = new Map(prev);
-          for (const row of data) {
-            const existing = prev.get(row.surah_number);
-            const prevTime = existing?.last_reviewed ? new Date(existing.last_reviewed).getTime() : 0;
-            const rowTime = (row as SurahProgress).last_reviewed
-              ? new Date((row as SurahProgress).last_reviewed!).getTime()
-              : 0;
-            if (!existing || rowTime >= prevTime) {
-              next.set(row.surah_number, row as SurahProgress);
-            }
-          }
-          saveLocalProgress(userId, next);
-          return next;
-        });
-      });
-  }, [userId]);
+    if (!userId || !progressData) return;
+    // Merge: keep whichever entry has a newer lastReviewed so local
+    // changes made before the fetch completes are never overwritten.
+    setProgress((prev) => {
+      const next = new Map(prev);
+      for (const row of progressData.data) {
+        const existing = prev.get(row.surahNumber);
+        const prevTime = existing?.lastReviewed ? new Date(existing.lastReviewed).getTime() : 0;
+        const rowTime = row.lastReviewed ? new Date(row.lastReviewed).getTime() : 0;
+        if (!existing || rowTime >= prevTime) {
+          next.set(row.surahNumber, {
+            id: row.id,
+            surahNumber: row.surahNumber,
+            status: row.status,
+            notes: row.notes ?? '',
+            lastReviewed: row.lastReviewed,
+          });
+        }
+      }
+      saveLocalProgress(userId, next);
+      return next;
+    });
+  }, [userId, progressData]);
 
   // ── Panel sync ──
   useEffect(() => {
@@ -227,7 +203,7 @@ export default function MapPage() {
 
   function updateProgress(num: number, patch: Partial<SurahProgress>) {
     setProgress((prev) => {
-      const cur = prev.get(num) ?? { surah_number: num, status: 'not_started' as Status, notes: '', last_reviewed: null, confidence: 0 };
+      const cur = prev.get(num) ?? { surahNumber: num, status: 'not_started' as Status, notes: '', lastReviewed: null };
       const next = new Map(prev);
       next.set(num, { ...cur, ...patch });
       if (userId) saveLocalProgress(userId, next);
@@ -235,12 +211,28 @@ export default function MapPage() {
     });
   }
 
+  // The API has no upsert endpoint: PATCH the known id if we have one from a
+  // prior fetch/create, otherwise POST to create a new row.
+  async function upsertProgressRow(
+    num: number,
+    patch: Partial<Pick<SurahProgress, 'status' | 'notes' | 'lastReviewed'>>,
+  ): Promise<{ ok: boolean; id?: string }> {
+    const existingId = progress.get(num)?.id;
+    try {
+      const row = await upsertProgress.mutateAsync({ id: existingId, surahNumber: num, patch });
+      return { ok: true, id: row.id };
+    } catch {
+      return { ok: false };
+    }
+  }
+
   async function markAsLastRead(num: number) {
     if (!userId) return;
     setSaveState('saving');
     const now = new Date().toISOString();
-    updateProgress(num, { status: panelStatus, notes: panelNotes, last_reviewed: now });
-    const { ok } = await robustUpsert(userId, num, { status: panelStatus, notes: panelNotes, last_reviewed: now });
+    updateProgress(num, { status: panelStatus, notes: panelNotes, lastReviewed: now });
+    const { ok, id } = await upsertProgressRow(num, { status: panelStatus, notes: panelNotes, lastReviewed: now });
+    if (ok && id) updateProgress(num, { id });
     setSaveState(ok ? 'saved' : 'error');
     // Record as the explicit "last session" so the dashboard "where I left off"
     // always shows the surah the user deliberately bookmarked, not just the
@@ -260,15 +252,18 @@ export default function MapPage() {
   async function savePanel(num: number, status: Status, notes: string) {
     if (!userId) return;
     updateProgress(num, { status, notes });
-    await robustUpsert(userId, num, { status, notes });
+    const { ok, id } = await upsertProgressRow(num, { status, notes });
+    if (ok && id) updateProgress(num, { id });
   }
 
   function handleStatusChange(status: Status) {
     setPanelStatus(status);
     if (!selectedSurah || !userId) return;
     const now = new Date().toISOString();
-    updateProgress(selectedSurah, { status, last_reviewed: now });
-    void robustUpsert(userId, selectedSurah, { status, notes: panelNotes, last_reviewed: now });
+    updateProgress(selectedSurah, { status, lastReviewed: now });
+    void upsertProgressRow(selectedSurah, { status, notes: panelNotes, lastReviewed: now }).then(({ ok, id }) => {
+      if (ok && id) updateProgress(selectedSurah, { id });
+    });
     // Keep "where I left off" in sync with the surah being actively worked on
     try {
       localStorage.setItem(
@@ -296,22 +291,22 @@ export default function MapPage() {
   };
 
   const recentlyReviewed = [...progress.entries()]
-    .filter(([, p]) => p.last_reviewed)
-    .sort((a, b) => new Date(b[1].last_reviewed!).getTime() - new Date(a[1].last_reviewed!).getTime())
+    .filter(([, p]) => p.lastReviewed)
+    .sort((a, b) => new Date(b[1].lastReviewed!).getTime() - new Date(a[1].lastReviewed!).getTime())
     .slice(0, 5).map(([n]) => n);
 
   const weakAlerts = [...progress.entries()]
-    .filter(([, p]) => p.status === 'weak' && (!p.last_reviewed || Date.now() - new Date(p.last_reviewed).getTime() > 3 * 86400000))
+    .filter(([, p]) => p.status === 'weak' && (!p.lastReviewed || Date.now() - new Date(p.lastReviewed).getTime() > 3 * 86400000))
     .map(([n, p]) => ({
       num: n,
-      days: p.last_reviewed ? Math.round((Date.now() - new Date(p.last_reviewed).getTime()) / 86400000) : null,
+      days: p.lastReviewed ? Math.round((Date.now() - new Date(p.lastReviewed).getTime()) / 86400000) : null,
     }));
 
   const isFriday = typeof window !== 'undefined' ? new Date().getDay() === 5 : false;
   const fridaySuggestions = isFriday
     ? [...progress.entries()]
         .filter(([, p]) => p.status === 'memorized' || p.status === 'in_progress')
-        .sort((a, b) => (a[1].last_reviewed ? new Date(a[1].last_reviewed).getTime() : 0) - (b[1].last_reviewed ? new Date(b[1].last_reviewed).getTime() : 0))
+        .sort((a, b) => (a[1].lastReviewed ? new Date(a[1].lastReviewed).getTime() : 0) - (b[1].lastReviewed ? new Date(b[1].lastReviewed).getTime() : 0))
         .slice(0, 3).map(([n]) => n)
     : [];
 
@@ -426,7 +421,7 @@ export default function MapPage() {
                   >
                     <p className="text-[10px] text-slate-500 sm:text-xs dark:text-slate-400">#{num}</p>
                     <p className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100 sm:text-base">{meta?.englishName ?? `Surah ${num}`}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">{daysAgo(p?.last_reviewed ?? null, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400 sm:text-xs">{daysAgo(p?.lastReviewed ?? null, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</p>
                   </button>
                 );
               })}
@@ -568,14 +563,8 @@ function SidePanel({
 }) {
   const cfg = STATUS_CONFIG[panelStatus];
 
-  const [reflections, setReflections] = useState<{ id: string; content: string; tag: string; created_at: string }[]>([]);
-  useEffect(() => {
-    if (!userId) return;
-    setReflections([]);
-    supabase.from('journal_entries').select('id,content,tag,created_at').eq('user_id', userId).eq('surah_number', surah.number)
-      .order('created_at', { ascending: false }).limit(3)
-      .then(({ data }) => setReflections((data ?? []) as typeof reflections));
-  }, [surah.number, userId]);
+  const { data: reflectionsData } = useJournalEntries({ surahNumber: surah.number }, !!userId);
+  const reflections = (reflectionsData?.data ?? []).slice(0, 3);
 
   return (
     <div className="px-5 pb-8 pt-4 sm:px-6 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:dark:border-slate-800 lg:dark:bg-slate-900 lg:pt-6 lg:pb-6">
@@ -613,10 +602,10 @@ function SidePanel({
             <span>{surah.revelationType}</span>
           </>
         )}
-        {progress?.last_reviewed && (
+        {progress?.lastReviewed && (
           <>
             <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span>{t('lastReviewed')}: <span className={`font-medium ${cfg.text}`}>{daysAgo(progress.last_reviewed, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</span></span>
+            <span>{t('lastReviewed')}: <span className={`font-medium ${cfg.text}`}>{daysAgo(progress.lastReviewed, t('never'), t('today'), t('yesterday'), t('daysAgo'))}</span></span>
           </>
         )}
       </div>
@@ -715,7 +704,7 @@ function SidePanel({
               className="block rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-slate-200 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700">
               <p className="line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{r.content}</p>
               <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-600">
-                {r.created_at ? new Date(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(r.created_at) ? r.created_at : r.created_at + 'Z').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                {r.createdAt ? new Date(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(r.createdAt) ? r.createdAt : r.createdAt + 'Z').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                 <span className="ml-1.5 capitalize opacity-70">· {r.tag}</span>
               </p>
             </Link>
@@ -760,8 +749,8 @@ function SurahGrid({ surahs, progress, selected, onSelect, tNever, panelOpen }: 
               </p>
             )}
             <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-500 sm:text-sm">{s.englishName}</p>
-            {p?.last_reviewed && (
-              <p className="mt-0.5 text-[10px] text-slate-300 dark:text-slate-700 sm:text-xs">{daysAgo(p.last_reviewed, tNever, tg('today'), tg('yesterday'), tg('daysAgo'))}</p>
+            {p?.lastReviewed && (
+              <p className="mt-0.5 text-[10px] text-slate-300 dark:text-slate-700 sm:text-xs">{daysAgo(p.lastReviewed, tNever, tg('today'), tg('yesterday'), tg('daysAgo'))}</p>
             )}
           </motion.button>
         );

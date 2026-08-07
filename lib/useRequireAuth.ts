@@ -1,26 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { useAuth } from '@/components/AuthProvider';
+import type { AuthUser } from '@/lib/auth';
 
-export function useRequireAuth(): { user: User | null; loading: boolean } {
+export function useRequireAuth(): { user: AuthUser | null; loading: boolean } {
   const router = useRouter();
-  const [state, setState] = useState<{ user: User | null; loading: boolean }>({
-    user: null,
-    loading: true,
-  });
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        const path = typeof window !== 'undefined' ? window.location.pathname : '/';
-        router.replace(`/?from=${encodeURIComponent(path)}`);
-      } else {
-        setState({ user: data.user, loading: false });
-      }
-    });
-  }, [router]);
+    if (!isLoading && !isAuthenticated) {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+      router.replace(`/?from=${encodeURIComponent(path)}`);
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-  return state;
+  return { user, loading: isLoading };
 }

@@ -6,8 +6,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import type { JournalTag as Tag, JournalEntry, VocabWord, JournalMilestone as Milestone } from '@/lib/types';
+import { useJournalEntries, useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry } from '@/lib/queries/journalEntries';
+import { useVocabWords, useCreateVocabWord, useDeleteVocabWord } from '@/lib/queries/vocabWords';
+import { useJournalMilestones, useCreateJournalMilestone, useDeleteJournalMilestone } from '@/lib/queries/journalMilestones';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -27,17 +31,6 @@ const SURAH_NAMES: string[] = [
 ];
 
 const MILESTONE_EMOJIS = ['✨','🎉','🤲','📖','🌟','💫','🏆','🌙'];
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Tag = 'tadabbur' | 'milestone' | 'struggle' | 'breakthrough';
-
-type JournalEntry = {
-  id: string; surah_number: number | null; ayah_number: number | null;
-  content: string; tag: Tag; pinned: boolean; created_at: string;
-};
-type VocabWord = { id: string; word: string; root: string; meaning: string; found_in: string; created_at: string };
-type Milestone = { id: string; text: string; emoji: string; type: 'auto' | 'manual'; created_at: string };
 
 // ─── Tag config (labelKey references i18n keys) ────────────────────────────────
 
@@ -92,7 +85,7 @@ function isSameDayPastYear(iso: string): boolean {
 
 function thisWeekCount(entries: JournalEntry[]): number {
   const cutoff = Date.now() - 7 * 86400000;
-  return entries.filter((e) => normalizeISO(e.created_at).getTime() > cutoff).length;
+  return entries.filter((e) => normalizeISO(e.createdAt).getTime() > cutoff).length;
 }
 
 // ─── PDF Export (always English) ──────────────────────────────────────────────
@@ -106,9 +99,9 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
     <div class="item">
       <div class="item-meta">
         <span class="tag" style="color:${tagColors[e.tag]};border-color:${tagColors[e.tag]}">${TAG_LABELS_EN[e.tag]}</span>
-        ${e.surah_number ? `<span class="ref">${surahLabel(e.surah_number)}${e.ayah_number ? ` · Ayah ${e.ayah_number}` : ''}</span>` : ''}
+        ${e.surahNumber ? `<span class="ref">${surahLabel(e.surahNumber)}${e.ayahNumber ? ` · Ayah ${e.ayahNumber}` : ''}</span>` : ''}
         ${e.pinned ? '<span class="pinned">📌</span>' : ''}
-        <span class="date">${normalizeISO(e.created_at).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
+        <span class="date">${normalizeISO(e.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
       </div>
       <p class="content">${esc(e.content)}</p>
     </div>`).join('');
@@ -116,8 +109,8 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
   const vocabRows = vocab.length === 0 ? '<p class="empty">No vocabulary saved.</p>' : vocab.map((w) => `
     <div class="item vocab-item">
       <div class="item-meta">
-        ${w.found_in ? `<span class="ref">${esc(w.found_in)}</span>` : ''}
-        <span class="date">${normalizeISO(w.created_at).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
+        ${w.foundIn ? `<span class="ref">${esc(w.foundIn)}</span>` : ''}
+        <span class="date">${normalizeISO(w.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
       </div>
       <div class="vocab-row">
         <span class="arabic" dir="rtl">${esc(w.word)}</span>
@@ -131,7 +124,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
       <span class="milestone-emoji">${m.emoji}</span>
       <div>
         <p class="milestone-text">${esc(m.text)}</p>
-        <p class="date">${normalizeISO(m.created_at).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</p>
+        <p class="date">${normalizeISO(m.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</p>
       </div>
     </div>`).join('');
 
@@ -350,17 +343,17 @@ function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: ()
     >
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{t(cfg.labelKey)}</span>
-        {entry.surah_number && (
+        {entry.surahNumber && (
           <Link
-            href={`/map?surah=${entry.surah_number}`}
+            href={`/map?surah=${entry.surahNumber}`}
             onClick={(e) => e.stopPropagation()}
             className="text-xs font-semibold text-slate-700 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-400 transition-colors truncate"
           >
-            {surahLabel(entry.surah_number)}{entry.ayah_number ? ` · ${entry.ayah_number}` : ''}
+            {surahLabel(entry.surahNumber)}{entry.ayahNumber ? ` · ${entry.ayahNumber}` : ''}
           </Link>
         )}
         {entry.pinned && <span className="text-[10px] text-amber-500">📌</span>}
-        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(entry.created_at, t)}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(entry.createdAt, t)}</span>
       </div>
       <p className="line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{entry.content}</p>
     </button>
@@ -377,10 +370,10 @@ function VocabCard({ word, onClick }: { word: VocabWord; onClick: () => void }) 
       className="group w-full text-left rounded-xl border border-slate-100 bg-white px-3.5 py-2.5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
     >
       <div className="flex items-center gap-2 mb-1.5">
-        {word.found_in && (
-          <span className="truncate text-xs text-slate-400 dark:text-slate-500">{word.found_in}</span>
+        {word.foundIn && (
+          <span className="truncate text-xs text-slate-400 dark:text-slate-500">{word.foundIn}</span>
         )}
-        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(word.created_at, t)}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(word.createdAt, t)}</span>
       </div>
       <div className="flex items-baseline gap-2">
         <p dir="rtl" className="font-arabic text-lg leading-tight text-slate-900 dark:text-slate-100 shrink-0">{word.word}</p>
@@ -400,7 +393,7 @@ function MilestoneCard({ milestone, onClick }: { milestone: Milestone; onClick: 
       className="group w-full text-left rounded-xl border border-slate-100 bg-white px-3.5 py-2.5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
     >
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">{formatDate(milestone.created_at, t)}</span>
+        <span className="text-[11px] text-slate-400 dark:text-slate-500">{formatDate(milestone.createdAt, t)}</span>
         {milestone.type === 'auto' && (
           <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">{t('autoLabel')}</span>
         )}
@@ -420,14 +413,14 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
   onClose: () => void;
   onPin: (id: string) => void;
   onDelete: (id: string) => void;
-  onEdit: (id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surah_number' | 'ayah_number'>) => Promise<void>;
+  onEdit: (id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surahNumber' | 'ayahNumber'>) => Promise<void>;
 }) {
   const { t } = useTranslation('common');
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(entry.content);
   const [editTag, setEditTag] = useState<Tag>(entry.tag);
-  const [editSurah, setEditSurah] = useState(entry.surah_number ? String(entry.surah_number) : '');
-  const [editAyah, setEditAyah] = useState(entry.ayah_number ? String(entry.ayah_number) : '');
+  const [editSurah, setEditSurah] = useState(entry.surahNumber ? String(entry.surahNumber) : '');
+  const [editAyah, setEditAyah] = useState(entry.ayahNumber ? String(entry.ayahNumber) : '');
   const [saving, setSaving] = useState(false);
   const cfg = TAG_CONFIG[entry.tag];
 
@@ -436,7 +429,7 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
     setSaving(true);
     const surahNum = parseSurahInput(editSurah);
     const ayahNum = editAyah.trim() ? parseInt(editAyah, 10) : null;
-    await onEdit(entry.id, { content: editContent.trim(), tag: editTag, surah_number: surahNum, ayah_number: isNaN(ayahNum as number) ? null : ayahNum });
+    await onEdit(entry.id, { content: editContent.trim(), tag: editTag, surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum });
     setSaving(false); setEditing(false);
   }
 
@@ -451,16 +444,16 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${cfg.activePill}`}>{t(cfg.labelKey)}</span>
-            {entry.surah_number && (
-              <Link href={`/map?surah=${entry.surah_number}`} onClick={onClose}
+            {entry.surahNumber && (
+              <Link href={`/map?surah=${entry.surahNumber}`} onClick={onClose}
                 className="text-sm font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400 transition-colors">
-                {surahLabel(entry.surah_number)}{entry.ayah_number ? ` · ${t('ayahs').slice(0, -1)} ${entry.ayah_number}` : ''}
+                {surahLabel(entry.surahNumber)}{entry.ayahNumber ? ` · ${t('ayahs').slice(0, -1)} ${entry.ayahNumber}` : ''}
               </Link>
             )}
             {entry.pinned && <span className="text-xs text-amber-500">📌 {t('pinnedLabel')}</span>}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(entry.created_at, t)}</span>
+            <span className="text-xs text-slate-400">{formatDate(entry.createdAt, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -549,12 +542,12 @@ function VocabDetailModal({ word, onClose, onDelete }: {
             <span className="rounded-full border border-emerald-400 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
               {t('vocabLabel')}
             </span>
-            {word.found_in && (
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{word.found_in}</span>
+            {word.foundIn && (
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{word.foundIn}</span>
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(word.created_at, t)}</span>
+            <span className="text-xs text-slate-400">{formatDate(word.createdAt, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -574,10 +567,10 @@ function VocabDetailModal({ word, onClose, onDelete }: {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{t('meaningLabel')}</p>
             <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">{word.meaning}</p>
           </div>
-          {word.found_in && (
+          {word.foundIn && (
             <div className="rounded-xl bg-emerald-50/60 px-4 py-3 dark:bg-emerald-950/20">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">{t('foundInLabel')}</p>
-              <p className="text-sm text-slate-700 dark:text-slate-300">{word.found_in}</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">{word.foundIn}</p>
             </div>
           )}
         </div>
@@ -621,7 +614,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
             )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs text-slate-400">{formatDate(milestone.created_at, t)}</span>
+            <span className="text-xs text-slate-400">{formatDate(milestone.createdAt, t)}</span>
             <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -636,7 +629,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
             <div>
               <p className="text-lg font-medium leading-relaxed text-slate-800 dark:text-slate-200">{milestone.text}</p>
               <p className="mt-2 text-sm text-slate-400">
-                {normalizeISO(milestone.created_at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {normalizeISO(milestone.createdAt).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -658,7 +651,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
 // ─── Write Modal ──────────────────────────────────────────────────────────────
 
 function WriteModal({ onSave, onClose }: {
-  onSave: (e: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) => Promise<void>;
+  onSave: (e: Omit<JournalEntry, 'id' | 'createdAt' | 'pinned'>) => Promise<void>;
   onClose: () => void;
 }) {
   const { t } = useTranslation('common');
@@ -675,7 +668,7 @@ function WriteModal({ onSave, onClose }: {
     setSaving(true);
     const surahNum = parseSurahInput(surahInput);
     const ayahNum = ayahInput.trim() ? parseInt(ayahInput, 10) : null;
-    await onSave({ surah_number: surahNum, ayah_number: isNaN(ayahNum as number) ? null : ayahNum, content: content.trim(), tag });
+    await onSave({ surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum, content: content.trim(), tag });
     setSaving(false); onClose();
   }
 
@@ -724,18 +717,31 @@ function WriteModal({ onSave, onClose }: {
 
 function JournalInner() {
   const { loading: authLoading } = useRequireAuth();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const { t } = useTranslation('common');
   const searchParams = useSearchParams();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showWriteModal, setShowWriteModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [selectedVocab, setSelectedVocab] = useState<VocabWord | null>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
 
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [vocab, setVocab] = useState<VocabWord[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const { data: entriesData, isLoading: entriesLoading, error: entriesError } = useJournalEntries({}, !!userId);
+  const { data: vocabData, isLoading: vocabLoading, error: vocabError } = useVocabWords(!!userId);
+  const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useJournalMilestones(!!userId);
+
+  const entries = entriesData?.data ?? [];
+  const vocab = vocabData?.data ?? [];
+  const milestones = milestonesData?.data ?? [];
+  const loading = authLoading || entriesLoading || vocabLoading || milestonesLoading;
+
+  const createEntryMutation = useCreateJournalEntry();
+  const updateEntryMutation = useUpdateJournalEntry();
+  const deleteEntryMutation = useDeleteJournalEntry();
+  const createVocabMutation = useCreateVocabWord();
+  const deleteVocabMutation = useDeleteVocabWord();
+  const createMilestoneMutation = useCreateJournalMilestone();
+  const deleteMilestoneMutation = useDeleteJournalMilestone();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<Tag | 'all'>('all');
@@ -745,33 +751,18 @@ function JournalInner() {
   const [vocabRoot, setVocabRoot] = useState('');
   const [vocabMeaning, setVocabMeaning] = useState('');
   const [vocabFoundIn, setVocabFoundIn] = useState('');
-  const [savingVocab, setSavingVocab] = useState(false);
+  const savingVocab = createVocabMutation.isPending;
 
   const [milestoneText, setMilestoneText] = useState('');
   const [milestoneEmoji, setMilestoneEmoji] = useState('✨');
-  const [savingMilestone, setSavingMilestone] = useState(false);
+  const savingMilestone = createMilestoneMutation.isPending;
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  // ── Load errors ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error: authErr }) => {
-      if (authErr) { setDbError(`Auth error: ${authErr.message}`); setLoading(false); return; }
-      const uid = data?.session?.user?.id ?? null;
-      setUserId(uid);
-      if (!uid) { setDbError('Not signed in — please sign in first.'); setLoading(false); return; }
-      Promise.all([
-        supabase.from('journal_entries').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('vocab_words').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('journal_milestones').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-      ]).then(([e, v, m]) => {
-        if (e.error || v.error || m.error) setDbError(`Load error: ${(e.error || v.error || m.error)!.message}`);
-        if (e.data) setEntries(e.data as JournalEntry[]);
-        if (v.data) setVocab(v.data as VocabWord[]);
-        if (m.data) setMilestones(m.data as Milestone[]);
-        setLoading(false);
-      });
-    });
-  }, []);
+    const err = entriesError || vocabError || milestonesError;
+    if (err) setDbError(`Load error: ${err instanceof Error ? err.message : 'unknown'}`);
+  }, [entriesError, vocabError, milestonesError]);
 
   useEffect(() => {
     const entryId = searchParams.get('entry');
@@ -782,129 +773,103 @@ function JournalInner() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  async function addEntry(e: Omit<JournalEntry, 'id' | 'created_at' | 'pinned'>) {
-    if (!userId) return;
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: JournalEntry = { ...e, id: tempId, pinned: false, created_at: new Date().toISOString() };
-    setEntries((prev) => [optimistic, ...prev]);
-    const payload: Record<string, unknown> = { user_id: userId, content: e.content, tag: e.tag, pinned: false };
-    if (e.surah_number != null) payload.surah_number = e.surah_number;
-    if (e.ayah_number != null) payload.ayah_number = e.ayah_number;
-    const { data, error } = await supabase.from('journal_entries').insert(payload).select('*').single();
-    if (error) { setDbError(`Save failed: ${error.message}`); setEntries((prev) => prev.filter((x) => x.id !== tempId)); return; }
-    if (data) setEntries((prev) => prev.map((x) => (x.id === tempId ? data as JournalEntry : x)));
+  async function addEntry(e: Omit<JournalEntry, 'id' | 'createdAt' | 'pinned'>) {
+    try {
+      await createEntryMutation.mutateAsync({
+        content: e.content,
+        tag: e.tag,
+        surahNumber: e.surahNumber ?? undefined,
+        ayahNumber: e.ayahNumber ?? undefined,
+      });
+    } catch (err) {
+      setDbError(`Save failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
   }
 
-  async function updateEntry(id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surah_number' | 'ayah_number'>) {
-    const original = entries.find((e) => e.id === id);
-    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, ...patch } : e));
-    setSelectedEntry((prev) => prev?.id === id ? { ...prev, ...patch } : prev);
-    const { error } = await supabase.from('journal_entries').update(patch).eq('id', id).eq('user_id', userId!);
-    if (error) {
-      if (original) {
-        setEntries((prev) => prev.map((e) => e.id === id ? original : e));
-        setSelectedEntry((prev) => prev?.id === id ? original : prev);
-      }
-      setDbError(`Update failed: ${error.message}`);
+  async function updateEntry(id: string, patch: Pick<JournalEntry, 'content' | 'tag' | 'surahNumber' | 'ayahNumber'>) {
+    if (id.startsWith('temp-')) return; // still being created — wait for it to settle
+    try {
+      await updateEntryMutation.mutateAsync({ id, patch });
+      setSelectedEntry((prev) => (prev?.id === id ? { ...prev, ...patch } : prev));
+    } catch (err) {
+      setDbError(`Update failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
   async function togglePin(id: string) {
+    if (id.startsWith('temp-')) return;
     const entry = entries.find((e) => e.id === id);
     if (!entry) return;
     const newPinned = !entry.pinned;
-    setEntries((prev) => prev.map((e) => e.id === id ? { ...e, pinned: newPinned } : e));
-    setSelectedEntry((prev) => prev?.id === id ? { ...prev, pinned: newPinned } : prev);
-    if (!id.startsWith('temp-')) {
-      const { error } = await supabase.from('journal_entries').update({ pinned: newPinned }).eq('id', id).eq('user_id', userId!);
-      if (error) {
-        setEntries((prev) => prev.map((e) => e.id === id ? { ...e, pinned: entry.pinned } : e));
-        setSelectedEntry((prev) => prev?.id === id ? { ...prev, pinned: entry.pinned } : prev);
-      }
+    try {
+      await updateEntryMutation.mutateAsync({ id, patch: { pinned: newPinned } });
+      setSelectedEntry((prev) => (prev?.id === id ? { ...prev, pinned: newPinned } : prev));
+    } catch (err) {
+      setDbError(`Update failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
   async function deleteEntry(id: string) {
-    const original = entries.find((e) => e.id === id);
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    if (!id.startsWith('temp-')) {
-      const { error } = await supabase.from('journal_entries').delete().eq('id', id).eq('user_id', userId!);
-      if (error) {
-        if (original) setEntries((prev) => [original, ...prev]);
-        setDbError(`Delete failed: ${error.message}`);
-      }
+    if (id.startsWith('temp-')) return;
+    try {
+      await deleteEntryMutation.mutateAsync(id);
+    } catch (err) {
+      setDbError(`Delete failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
   async function handleAddVocab() {
-    if (!userId || !vocabWord.trim() || !vocabMeaning.trim()) return;
-    setSavingVocab(true);
-    const w = { word: vocabWord.trim(), root: vocabRoot.trim(), meaning: vocabMeaning.trim(), found_in: vocabFoundIn.trim() };
-    const tempId = `temp-${Date.now()}`;
-    setVocab((prev) => [{ ...w, id: tempId, created_at: new Date().toISOString() }, ...prev]);
-    const { data, error } = await supabase.from('vocab_words').insert({ user_id: userId, ...w }).select('*').single();
-    if (error) {
-      setVocab((prev) => prev.filter((x) => x.id !== tempId));
-      setDbError(`Save failed: ${error.message}`);
-      setSavingVocab(false);
-      return;
+    if (!vocabWord.trim() || !vocabMeaning.trim()) return;
+    try {
+      await createVocabMutation.mutateAsync({
+        word: vocabWord.trim(),
+        meaning: vocabMeaning.trim(),
+        root: vocabRoot.trim(),
+        foundIn: vocabFoundIn.trim(),
+      });
+      setVocabWord(''); setVocabRoot(''); setVocabMeaning(''); setVocabFoundIn('');
+    } catch (err) {
+      setDbError(`Save failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
-    if (data) setVocab((prev) => prev.map((x) => (x.id === tempId ? data as VocabWord : x)));
-    setVocabWord(''); setVocabRoot(''); setVocabMeaning(''); setVocabFoundIn('');
-    setSavingVocab(false);
   }
 
   async function deleteVocab(id: string) {
-    const removed = vocab.find((w) => w.id === id);
-    setVocab((prev) => prev.filter((w) => w.id !== id));
-    if (!id.startsWith('temp-')) {
-      const { error } = await supabase.from('vocab_words').delete().eq('id', id).eq('user_id', userId!);
-      if (error) {
-        if (removed) setVocab((prev) => [removed, ...prev]);
-        setDbError(`Delete failed: ${error.message}`);
-      }
+    if (id.startsWith('temp-')) return;
+    try {
+      await deleteVocabMutation.mutateAsync(id);
+    } catch (err) {
+      setDbError(`Delete failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
   async function handleAddMilestone() {
-    if (!userId || !milestoneText.trim()) return;
-    setSavingMilestone(true);
-    const text = milestoneText.trim();
-    const tempId = `temp-${Date.now()}`;
-    setMilestones((prev) => [{ id: tempId, text, emoji: milestoneEmoji, type: 'manual', created_at: new Date().toISOString() }, ...prev]);
-    const { data, error } = await supabase.from('journal_milestones').insert({ user_id: userId, text, emoji: milestoneEmoji, type: 'manual' }).select('*').single();
-    if (error) {
-      setMilestones((prev) => prev.filter((x) => x.id !== tempId));
-      setDbError(`Save failed: ${error.message}`);
-      setSavingMilestone(false);
-      return;
+    if (!milestoneText.trim()) return;
+    try {
+      await createMilestoneMutation.mutateAsync({ text: milestoneText.trim(), emoji: milestoneEmoji, type: 'manual' });
+      setMilestoneText('');
+    } catch (err) {
+      setDbError(`Save failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
-    if (data) setMilestones((prev) => prev.map((x) => (x.id === tempId ? data as Milestone : x)));
-    setMilestoneText('');
-    setSavingMilestone(false);
   }
 
   async function deleteMilestone(id: string) {
-    const removed = milestones.find((m) => m.id === id);
-    setMilestones((prev) => prev.filter((m) => m.id !== id));
-    if (!id.startsWith('temp-')) {
-      const { error } = await supabase.from('journal_milestones').delete().eq('id', id).eq('user_id', userId!);
-      if (error) {
-        if (removed) setMilestones((prev) => [removed, ...prev]);
-        setDbError(`Delete failed: ${error.message}`);
-      }
+    if (id.startsWith('temp-')) return;
+    try {
+      await deleteMilestoneMutation.mutateAsync(id);
+    } catch (err) {
+      setDbError(`Delete failed: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const pinnedEntries = entries.filter((e) => e.pinned);
-  const onThisDay = entries.find((e) => isSameDayPastYear(e.created_at));
+  const onThisDay = entries.find((e) => isSameDayPastYear(e.createdAt));
 
   const filteredEntries = entries.filter((e) => {
     const matchTag = filterTag === 'all' || e.tag === filterTag;
     const q = searchQuery.toLowerCase();
-    const matchSearch = !q || e.content.toLowerCase().includes(q) || (e.surah_number ? surahLabel(e.surah_number).toLowerCase().includes(q) : false);
+    const matchSearch = !q || e.content.toLowerCase().includes(q) || (e.surahNumber ? surahLabel(e.surahNumber).toLowerCase().includes(q) : false);
     return matchTag && matchSearch;
   });
 
@@ -996,7 +961,7 @@ function JournalInner() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('latestMilestone')}</p>
                 <p className="text-xs text-slate-400 mb-1.5 leading-relaxed">
-                  {normalizeISO(milestones[0].created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {normalizeISO(milestones[0].createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
                 <p className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-300 line-clamp-3">{milestones[0].text}</p>
               </div>
@@ -1044,10 +1009,10 @@ function JournalInner() {
                   {onThisDay && (
                     <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
                       <p className="mb-1 text-xs font-semibold text-amber-600 dark:text-amber-500">
-                        {t('onThisDay', { year: normalizeISO(onThisDay.created_at).getFullYear() })}
+                        {t('onThisDay', { year: normalizeISO(onThisDay.createdAt).getFullYear() })}
                       </p>
                       <p className="line-clamp-2 text-xs leading-5 text-slate-700 dark:text-slate-300">{onThisDay.content}</p>
-                      {onThisDay.surah_number && <p className="mt-1 text-[11px] text-slate-400">{surahLabel(onThisDay.surah_number)}</p>}
+                      {onThisDay.surahNumber && <p className="mt-1 text-[11px] text-slate-400">{surahLabel(onThisDay.surahNumber)}</p>}
                     </div>
                   )}
 

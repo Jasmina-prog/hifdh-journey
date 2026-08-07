@@ -5,8 +5,11 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
+import { useSurahProgress } from '@/lib/queries/surahProgress';
+import { useJournalEntries } from '@/lib/queries/journalEntries';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +25,8 @@ type ProfileData = {
   niyyah: string;
   dailyGoalPages: string;
 };
+
+type ExtraFields = Pick<ProfileData, 'location' | 'journeyStart' | 'ustadh' | 'method' | 'niyyah'>;
 
 type Stats = {
   memorized: number;
@@ -43,6 +48,28 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
     .join('');
+}
+
+// Extra fields (location/journeyStart/ustadh/method/niyyah) have no home in
+// the new API's profile model, so they're kept client-side only.
+function extraFieldsKey(userId: string) {
+  return `hifdh-profile-extra-${userId}`;
+}
+
+function loadExtraFields(userId: string): ExtraFields {
+  try {
+    const raw = localStorage.getItem(extraFieldsKey(userId));
+    if (!raw) return { location: '', journeyStart: '', ustadh: '', method: '', niyyah: '' };
+    return { location: '', journeyStart: '', ustadh: '', method: '', niyyah: '', ...JSON.parse(raw) };
+  } catch {
+    return { location: '', journeyStart: '', ustadh: '', method: '', niyyah: '' };
+  }
+}
+
+function saveExtraFields(userId: string, fields: ExtraFields) {
+  try {
+    localStorage.setItem(extraFieldsKey(userId), JSON.stringify(fields));
+  } catch {}
 }
 
 // ─── Reusable field ───────────────────────────────────────────────────────────
@@ -112,18 +139,27 @@ function Divider() {
 
 export default function ProfilePage() {
   const { loading: authLoading } = useRequireAuth();
+  const { user, logout } = useAuth();
   const { t } = useTranslation('common');
-  const [, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData>({
     fullName: '', email: '', location: '', journeyStart: '',
     ustadh: '', method: '', niyyah: '', dailyGoalPages: '',
   });
-  const [stats, setStats] = useState<Stats>({ memorized: 0, journalEntries: 0 });
-  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: profileData, isLoading: profileLoading } = useProfile(!!user);
+  const updateProfile = useUpdateProfile();
+  const { data: progressData } = useSurahProgress({ status: 'memorized' }, !!user);
+  const { data: journalData } = useJournalEntries({}, !!user);
+
+  const stats: Stats = {
+    memorized: progressData?.meta.total ?? 0,
+    journalEntries: journalData?.meta.total ?? 0,
+  };
 
   const METHOD_OPTIONS: { value: Method; labelKey: string }[] = [
     { value: 'page',  labelKey: 'methodByPage' },
@@ -131,59 +167,22 @@ export default function ProfilePage() {
     { value: 'surah', labelKey: 'methodBySurah' },
   ];
 
-  // ── Load ──
+  // ── Hydrate once the user + profile query have both resolved ──
   useEffect(() => {
-    async function load() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { setLoading(false); return; }
+    if (!user || profileLoading || hydrated) return;
+    const extra = loadExtraFields(user.id);
+    const resolvedName =
+      profileData?.fullName ||
+      user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '';
 
-      const { user } = session;
-      setUserId(user.id);
-      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-
-      const { data: profileRow } = await supabase
-        .from('profiles')
-        .select('full_name, daily_goal_pages')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      const resolvedName =
-        (profileRow?.full_name as string) ||
-        (meta.full_name as string) ||
-        (meta.name as string) ||
-        user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '';
-
-      // Ensure a row always exists in profiles on first load
-      if (!profileRow) {
-        await supabase.from('profiles').upsert(
-          { id: user.id, full_name: resolvedName },
-          { onConflict: 'id' },
-        );
-      }
-
-      setProfile({
-        fullName:       resolvedName,
-        email:          user.email ?? '',
-        location:       (meta.location as string) || '',
-        journeyStart:   (meta.journey_start as string) || '',
-        ustadh:         (meta.ustadh as string) || '',
-        method:         (meta.memorization_method as Method) || '',
-        niyyah:         (meta.niyyah as string) || '',
-        dailyGoalPages: profileRow?.daily_goal_pages != null ? String(profileRow.daily_goal_pages) : '',
-      });
-      setLoading(false);
-
-      const [progressRes, journalRes] = await Promise.all([
-        supabase.from('surah_progress').select('surah_number').eq('user_id', user.id).eq('status', 'memorized'),
-        supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      ]);
-      setStats({
-        memorized:      progressRes.data?.length ?? 0,
-        journalEntries: journalRes.count ?? 0,
-      });
-    }
-    load();
-  }, []);
+    setProfile({
+      fullName: resolvedName,
+      email: user.email ?? '',
+      dailyGoalPages: profileData?.dailyGoalPages != null ? String(profileData.dailyGoalPages) : '',
+      ...extra,
+    });
+    setHydrated(true);
+  }, [user, profileLoading, profileData, hydrated]);
 
   // ── Auto-save on field change ──
   function updateField<K extends keyof ProfileData>(key: K, value: ProfileData[K]) {
@@ -196,50 +195,39 @@ export default function ProfilePage() {
   }
 
   async function saveProfile(data: ProfileData) {
+    if (!user) return;
     setSaving(true);
     setSaved(false);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const uid = session?.user?.id;
+    saveExtraFields(user.id, {
+      location: data.location,
+      journeyStart: data.journeyStart,
+      ustadh: data.ustadh,
+      method: data.method,
+      niyyah: data.niyyah,
+    });
 
-    const [metaResult, profileResult] = await Promise.all([
-      supabase.auth.updateUser({
-        data: {
-          full_name:            data.fullName.trim(),
-          location:             data.location.trim(),
-          journey_start:        data.journeyStart || null,
-          ustadh:               data.ustadh.trim(),
-          memorization_method:  data.method,
-          niyyah:               data.niyyah.trim(),
-        },
-      }),
-      uid ? supabase.from('profiles').upsert({
-        id:               uid,
-        full_name:        data.fullName.trim(),
-        daily_goal_pages: data.dailyGoalPages ? parseInt(data.dailyGoalPages, 10) || null : null,
-      }, { onConflict: 'id' }) : Promise.resolve({ error: null }),
-    ]);
-
-    if (metaResult.error || profileResult.error) { setSaving(false); return; }
-    await supabase.auth.refreshSession();
-    try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
-    setSaving(false);
-    setSaved(true);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => setSaved(false), 2500);
+    try {
+      await updateProfile.mutateAsync({
+        fullName: data.fullName.trim(),
+        dailyGoalPages: data.dailyGoalPages ? parseInt(data.dailyGoalPages, 10) || null : null,
+      });
+      try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
+      setSaved(true);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function signOut() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    const { error } = await supabase.auth.signOut({ scope: 'global' });
-    if (error) {
-      console.error('Sign out error:', error);
-      return;
-    }
+    await logout();
     window.location.replace('/');
   }
 
-  if (loading || authLoading) {
+  if (authLoading || !hydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="animate-pulse text-slate-400">{t('loadingSession')}</p>

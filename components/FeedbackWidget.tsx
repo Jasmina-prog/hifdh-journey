@@ -1,26 +1,10 @@
 'use client';
 
-// Supabase table required — run once in the SQL editor:
-// CREATE TABLE feedback (
-//   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-//   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-//   email text,
-//   name text,
-//   type text,
-//   message text NOT NULL,
-//   created_at timestamptz DEFAULT now()
-// );
-// ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
-// CREATE POLICY "Anyone can submit feedback" ON feedback FOR INSERT TO public WITH CHECK (true);
-//
-// If the table already exists, add the new columns:
-// ALTER TABLE feedback ADD COLUMN IF NOT EXISTS email text;
-// ALTER TABLE feedback ADD COLUMN IF NOT EXISTS name text;
-
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthProvider';
+import { useSubmitFeedback } from '@/lib/queries/feedback';
 
 const gold = 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)';
 
@@ -71,6 +55,8 @@ type Status = 'idle' | 'sending' | 'done' | 'error';
 
 export function FeedbackWidget() {
   const { t } = useTranslation('common');
+  const { user } = useAuth();
+  const submitFeedback = useSubmitFeedback();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState('idea');
   const [message, setMessage] = useState('');
@@ -108,22 +94,12 @@ export function FeedbackWidget() {
     if (!message.trim() || status === 'sending') return;
     setStatus('sending');
     try {
-      // getSession() reads from local storage — no network round-trip
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      const name =
-        user?.user_metadata?.full_name ??
-        user?.user_metadata?.name ??
-        user?.user_metadata?.display_name ??
-        null;
-      const { error } = await supabase.from('feedback').insert({
+      await submitFeedback.mutateAsync({
         type,
         message: message.trim(),
-        user_id: user?.id ?? null,
-        email: user?.email ?? null,
-        name,
+        name: user?.profile?.fullName ?? undefined,
+        email: user?.email ?? undefined,
       });
-      if (error) throw error;
       setStatus('done');
     } catch (e) {
       console.error('Feedback submit:', e);

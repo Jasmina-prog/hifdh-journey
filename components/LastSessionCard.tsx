@@ -26,7 +26,7 @@ function daysAgo(dateStr: string, t: (k: string) => string): string {
   return `${diff} ${t('daysAgo')}`;
 }
 
-type ProgressRow = { surah_number: number; status: string; last_reviewed: string | null };
+type ProgressRow = { surahNumber: number; status: string; lastReviewed: string | null };
 
 export function LastSessionCard({
   progressRows,
@@ -36,13 +36,13 @@ export function LastSessionCard({
   const { t } = useTranslation('common');
 
   // Mirror the "Recently Reviewed" strip on the map page: pick the surah
-  // with the most recent last_reviewed timestamp, regardless of status.
+  // with the most recent lastReviewed timestamp, regardless of status.
   const mostRecent = [...progressRows]
-    .filter((r) => r.last_reviewed)
-    .sort((a, b) => new Date(b.last_reviewed!).getTime() - new Date(a.last_reviewed!).getTime())[0] ?? null;
+    .filter((r) => r.lastReviewed)
+    .sort((a, b) => new Date(b.lastReviewed!).getTime() - new Date(a.lastReviewed!).getTime())[0] ?? null;
 
-  const surahNumber: number | null = mostRecent?.surah_number ?? null;
-  const lastReviewed: string | null = mostRecent?.last_reviewed ?? null;
+  const surahNumber: number | null = mostRecent?.surahNumber ?? null;
+  const lastReviewed: string | null = mostRecent?.lastReviewed ?? null;
   const surahName = surahNumber ? SURAH_NAMES[surahNumber - 1] : null;
   const juz = surahNumber ? SURAH_TO_JUZ[surahNumber] : null;
 
