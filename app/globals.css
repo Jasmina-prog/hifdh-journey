@@ -132,3 +132,48 @@
     @apply cursor-pointer;
   }
 }
+/* ─── Journal rich text ──────────────────────────────────────────────────── */
+
+.journal-prose {
+  @apply text-sm leading-7 text-slate-800 dark:text-slate-200;
+}
+.journal-prose > * + * { @apply mt-2; }
+.journal-prose h1 { @apply mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100; }
+.journal-prose h2 { @apply mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100; }
+.journal-prose h3 { @apply mt-3 text-base font-semibold text-slate-900 dark:text-slate-100; }
+.journal-prose a { @apply text-emerald-700 underline underline-offset-2 dark:text-emerald-400; }
+.journal-prose mark { @apply rounded-sm px-0.5 text-slate-900; }
+.journal-prose ul { @apply list-disc pl-5; }
+.journal-prose ol { @apply list-decimal pl-5; }
+.journal-prose blockquote { @apply border-l-2 border-slate-300 pl-3 italic text-slate-600 dark:border-slate-600 dark:text-slate-400; }
+.journal-prose hr { @apply my-4 border-slate-200 dark:border-slate-700; }
+.journal-prose .rt-arabic { font-family: var(--font-display); font-size: 1.15em; }
+
+.journal-prose ul[data-type="taskList"] { @apply list-none pl-0; }
+.journal-prose ul[data-type="taskList"] li { @apply flex items-start gap-2; }
+.journal-prose ul[data-type="taskList"] li > label { @apply mt-1 select-none; }
+.journal-prose ul[data-type="taskList"] li > div { @apply flex-1; }
+.journal-prose ul[data-type="taskList"] li[data-checked="true"] > div { @apply text-slate-400 line-through; }
+.journal-prose ul[data-type="taskList"] input[type="checkbox"] { @apply accent-emerald-600; }
+
+.journal-prose figure[data-type="quran-verse"] {
+  @apply my-3 rounded-xl border border-amber-200/70 bg-amber-50/60 px-4 py-3 text-right text-2xl leading-[2.2] text-slate-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-slate-100;
+  font-family: var(--font-display);
+}
+.journal-prose figure[data-type="quran-verse"]::after,
+.journal-prose aside[data-type="hadith"]::after {
+  @apply mt-1 block text-xs not-italic text-slate-400;
+  font-family: var(--font-sans);
+  content: attr(data-ref);
+}
+.journal-prose figure[data-type="quran-verse"]::after { direction: ltr; text-align: left; content: "— " attr(data-ref); }
+.journal-prose aside[data-type="hadith"] {
+  @apply my-3 rounded-xl border border-emerald-200/70 bg-emerald-50/60 px-4 py-3 text-slate-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-slate-200;
+}
+.journal-prose aside[data-type="hadith"][data-source]:not([data-source=""])::after { content: "— " attr(data-source); }
+.journal-prose aside[data-type="hadith"][data-source=""]::after { content: none; }
+
+.journal-prose p.is-editor-empty:first-child::before {
+  @apply pointer-events-none float-left h-0 text-slate-300 dark:text-slate-600;
+  content: attr(data-placeholder);
+}

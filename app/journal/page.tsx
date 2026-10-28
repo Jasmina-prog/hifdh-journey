@@ -11,24 +11,12 @@ import { useRequireAuth } from '@/lib/useRequireAuth';
 import type { JournalTag as Tag, JournalEntry, VocabWord, JournalMilestone as Milestone } from '@/lib/types';
 import { useJournalEntries, useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry } from '@/lib/queries/journalEntries';
 import { useVocabWords, useCreateVocabWord, useDeleteVocabWord } from '@/lib/queries/vocabWords';
+import { SURAH_NAMES } from '@/lib/surahNames';
+import { contentToPlainText, sanitizeRichText } from '@/lib/richText';
+import { RichTextEditor, RichTextView } from '@/components/RichTextEditor';
 import { useJournalMilestones, useCreateJournalMilestone, useDeleteJournalMilestone } from '@/lib/queries/journalMilestones';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const SURAH_NAMES: string[] = [
-  'Al-Fatihah','Al-Baqarah',"Ali 'Imran","An-Nisa'","Al-Ma'idah","Al-An'am","Al-A'raf",'Al-Anfal','At-Tawbah','Yunus',
-  'Hud','Yusuf',"Ar-Ra'd",'Ibrahim','Al-Hijr','An-Nahl',"Al-Isra'",'Al-Kahf','Maryam','Ta-Ha',"Al-Anbiya'",'Al-Hajj',
-  "Al-Mu'minun",'An-Nur','Al-Furqan',"Ash-Shu'ara'",'An-Naml','Al-Qasas',"Al-'Ankabut",'Ar-Rum','Luqman','As-Sajdah',
-  'Al-Ahzab',"Saba'",'Fatir','Ya-Sin','As-Saffat','Sad','Az-Zumar','Ghafir','Fussilat','Ash-Shura','Az-Zukhruf',
-  'Ad-Dukhan','Al-Jathiyah','Al-Ahqaf','Muhammad','Al-Fath','Al-Hujurat','Qaf','Adh-Dhariyat','At-Tur','An-Najm',
-  'Al-Qamar','Ar-Rahman',"Al-Waqi'ah",'Al-Hadid','Al-Mujadilah','Al-Hashr','Al-Mumtahanah','As-Saff',"Al-Jumu'ah",
-  'Al-Munafiqun','At-Taghabun','At-Talaq','At-Tahrim','Al-Mulk','Al-Qalam','Al-Haqqah',"Al-Ma'arij",'Nuh','Al-Jinn',
-  'Al-Muzzammil','Al-Muddaththir','Al-Qiyamah','Al-Insan','Al-Mursalat',"An-Naba'","An-Nazi'at",'Abasa','At-Takwir',
-  'Al-Infitar','Al-Mutaffifin','Al-Inshiqaq','Al-Buruj','At-Tariq',"Al-A'la",'Al-Ghashiyah','Al-Fajr','Al-Balad',
-  'Ash-Shams','Al-Lail','Ad-Duha','Ash-Sharh','At-Tin',"Al-'Alaq",'Al-Qadr','Al-Bayyinah','Az-Zalzalah',
-  "Al-'Adiyat","Al-Qari'ah",'At-Takathur',"Al-'Asr",'Al-Humazah','Al-Fil','Quraysh',"Al-Ma'un",'Al-Kawthar',
-  'Al-Kafirun','An-Nasr','Al-Masad','Al-Ikhlas','Al-Falaq','An-Nas',
-];
 
 const MILESTONE_EMOJIS = ['✨','🎉','🤲','📖','🌟','💫','🏆','🌙'];
 
@@ -103,7 +91,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
         ${e.pinned ? '<span class="pinned">📌</span>' : ''}
         <span class="date">${normalizeISO(e.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
       </div>
-      <p class="content">${esc(e.content)}</p>
+      <div class="content">${sanitizeRichText(e.content)}</div>
     </div>`).join('');
 
   const vocabRows = vocab.length === 0 ? '<p class="empty">No vocabulary saved.</p>' : vocab.map((w) => `
@@ -143,6 +131,18 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
     .pinned{font-size:12px}
     .date{font-size:11px;color:#9ca3af;margin-left:auto}
     .content{font-size:14px;line-height:1.9;color:#374151}
+    .content>*+*{margin-top:8px}
+    .content h1,.content h2,.content h3{border:none;padding:0;margin:14px 0 4px;font-size:16px}
+    .content ul,.content ol{padding-left:22px}
+    .content ul[data-type="taskList"]{list-style:none;padding-left:0}
+    .content ul[data-type="taskList"] li{display:flex;gap:8px}
+    .content blockquote{border-left:2px solid #d1d5db;padding-left:12px;font-style:italic;color:#6b7280}
+    .content a{color:#059669}
+    .content .rt-arabic{font-size:1.15em}
+    .content figure[data-type="quran-verse"]{direction:rtl;text-align:right;font-size:22px;line-height:2.1;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;color:#111}
+    .content aside[data-type="hadith"]{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px 14px}
+    .content figure[data-type="quran-verse"]::after{content:"— " attr(data-ref);display:block;direction:ltr;text-align:left;font-size:11px;color:#9ca3af}
+    .content aside[data-type="hadith"]:not([data-source=""])::after{content:"— " attr(data-source);display:block;font-size:11px;color:#9ca3af}
     .vocab-item{}
     .vocab-row{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
     .arabic{font-size:26px;line-height:1.2;color:#111;direction:rtl}
@@ -355,7 +355,7 @@ function CompactEntryCard({ entry, onClick }: { entry: JournalEntry; onClick: ()
         {entry.pinned && <span className="text-[10px] text-amber-500">📌</span>}
         <span className="ml-auto shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{formatDate(entry.createdAt, t)}</span>
       </div>
-      <p className="line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{entry.content}</p>
+      <p className="line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{contentToPlainText(entry.content)}</p>
     </button>
   );
 }
@@ -425,11 +425,11 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
   const cfg = TAG_CONFIG[entry.tag];
 
   async function saveEdit() {
-    if (!editContent.trim()) return;
+    if (!contentToPlainText(editContent).trim()) return;
     setSaving(true);
     const surahNum = parseSurahInput(editSurah);
     const ayahNum = editAyah.trim() ? parseInt(editAyah, 10) : null;
-    await onEdit(entry.id, { content: editContent.trim(), tag: editTag, surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum });
+    await onEdit(entry.id, { content: editContent, tag: editTag, surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum });
     setSaving(false); setEditing(false);
   }
 
@@ -439,7 +439,7 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
       <motion.div
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.22 }}
-        className={`relative z-10 w-full max-w-2xl rounded-2xl border border-l-4 ${cfg.leftBorder} bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 overflow-hidden max-h-[90vh] flex flex-col`}
+        className={`relative z-10 w-full ${editing ? 'max-w-4xl' : 'max-w-2xl'} rounded-2xl border border-l-4 ${cfg.leftBorder} bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 overflow-hidden max-h-[90vh] flex flex-col`}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
@@ -482,11 +482,10 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
                   </button>
                 ))}
               </div>
-              <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={8}
-                className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+              <RichTextEditor value={editContent} onChange={setEditContent} onSubmit={saveEdit} />
             </div>
           ) : (
-            <p className="whitespace-pre-wrap text-sm leading-8 text-slate-700 dark:text-slate-300">{entry.content}</p>
+            <RichTextView content={entry.content} className="leading-8 text-slate-700 dark:text-slate-300" />
           )}
         </div>
 
@@ -660,15 +659,13 @@ function WriteModal({ onSave, onClose }: {
   const [content, setContent] = useState('');
   const [tag, setTag] = useState<Tag>('tadabbur');
   const [saving, setSaving] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { textareaRef.current?.focus(); }, []);
 
   async function handleSave() {
-    if (!content.trim()) return;
+    if (!contentToPlainText(content).trim() || saving) return;
     setSaving(true);
     const surahNum = parseSurahInput(surahInput);
     const ayahNum = ayahInput.trim() ? parseInt(ayahInput, 10) : null;
-    await onSave({ surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum, content: content.trim(), tag });
+    await onSave({ surahNumber: surahNum, ayahNumber: isNaN(ayahNum as number) ? null : ayahNum, content, tag });
     setSaving(false); onClose();
   }
 
@@ -676,7 +673,7 @@ function WriteModal({ onSave, onClose }: {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.22 }}
-        className="relative z-10 w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        className="relative z-10 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         <div className="mb-4 flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('newEntry')}</p>
           <button onClick={onClose} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800">
@@ -696,13 +693,10 @@ function WriteModal({ onSave, onClose }: {
             </button>
           ))}
         </div>
-        <textarea ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)}
-          onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave(); }}
-          rows={5} placeholder={t('reflectionPlaceholder')}
-          className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm leading-7 text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+        <RichTextEditor value={content} onChange={setContent} onSubmit={handleSave} placeholder={t('reflectionPlaceholder')} autoFocus />
         <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-slate-300 dark:text-slate-700">{t('cmdEnterSave')}</span>
-          <button type="button" onClick={handleSave} disabled={!content.trim() || saving}
+          <button type="button" onClick={handleSave} disabled={!contentToPlainText(content).trim() || saving}
             className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition disabled:opacity-30"
             style={{ background: 'linear-gradient(135deg, #d4af6e, #c9a020, #8b6510)' }}>
             {saving ? t('saving') : t('saveEntry')}
@@ -869,7 +863,7 @@ function JournalInner() {
   const filteredEntries = entries.filter((e) => {
     const matchTag = filterTag === 'all' || e.tag === filterTag;
     const q = searchQuery.toLowerCase();
-    const matchSearch = !q || e.content.toLowerCase().includes(q) || (e.surahNumber ? surahLabel(e.surahNumber).toLowerCase().includes(q) : false);
+    const matchSearch = !q || contentToPlainText(e.content).toLowerCase().includes(q) || (e.surahNumber ? surahLabel(e.surahNumber).toLowerCase().includes(q) : false);
     return matchTag && matchSearch;
   });
 
@@ -1011,7 +1005,7 @@ function JournalInner() {
                       <p className="mb-1 text-xs font-semibold text-amber-600 dark:text-amber-500">
                         {t('onThisDay', { year: normalizeISO(onThisDay.createdAt).getFullYear() })}
                       </p>
-                      <p className="line-clamp-2 text-xs leading-5 text-slate-700 dark:text-slate-300">{onThisDay.content}</p>
+                      <p className="line-clamp-2 text-xs leading-5 text-slate-700 dark:text-slate-300">{contentToPlainText(onThisDay.content)}</p>
                       {onThisDay.surahNumber && <p className="mt-1 text-[11px] text-slate-400">{surahLabel(onThisDay.surahNumber)}</p>}
                     </div>
                   )}
