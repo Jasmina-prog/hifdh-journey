@@ -686,6 +686,13 @@ function SidePanel({
         {t('openInQuranCom')}
       </a>
 
+      <Link
+        href={`/companion-test?surah=${surah.number}`}
+        className="mt-2 block text-center text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 transition"
+      >
+        {t('practiceWithCompanion')}
+      </Link>
+
       {/* Reflections from Journal */}
       <hr className="my-4 border-slate-100 dark:border-slate-800" />
       <div className="flex items-center justify-between mb-2.5">

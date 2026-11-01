@@ -121,13 +121,19 @@ function QuranInsertForm({ editor, onDone }: { editor: Editor; onDone: () => voi
   const [surah, setSurah] = useState(1);
   const [from, setFrom] = useState('1');
   const [to, setTo] = useState('');
+  const [includeBasmala, setIncludeBasmala] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function insert() {
-    const start = parseInt(from, 10);
+    let start = parseInt(from, 10);
     const end = to.trim() ? parseInt(to, 10) : start;
     if (isNaN(start) || isNaN(end) || start < 1 || end < start) { setError(t('editorInvalidAyah')); return; }
+    // In the Hafs count the Basmala is Al-Fatihah 1:1; let the user leave it out.
+    if (surah === 1 && start === 1 && !includeBasmala) {
+      if (end === 1) { setError(t('editorBasmalaOnly')); return; }
+      start = 2;
+    }
     if (end - start + 1 > MAX_AYAHS) { setError(t('editorTooManyAyahs', { max: MAX_AYAHS })); return; }
     setLoading(true); setError('');
     try {
@@ -156,6 +162,12 @@ function QuranInsertForm({ editor, onDone }: { editor: Editor; onDone: () => voi
         <input type="number" min={1} value={to} onChange={(e) => setTo(e.target.value)} placeholder={t('editorToAyah')} className={inputClass}
           onKeyDown={(e) => { if (e.key === 'Enter') insert(); }} />
       </div>
+      {surah === 1 && parseInt(from, 10) === 1 && (
+        <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+          <input type="checkbox" checked={includeBasmala} onChange={(e) => setIncludeBasmala(e.target.checked)} className="accent-emerald-600" />
+          {t('editorIncludeBasmala')}
+        </label>
+      )}
       {error && <p className="text-xs text-rose-500">{error}</p>}
       <div className="flex justify-end">
         <button type="button" onClick={insert} disabled={loading} className={primaryButtonClass}>

@@ -418,21 +418,28 @@ const PAGE_NAME_KEYS: Record<string, string> = {
 
 // ─── Page (inner — needs useSearchParams) ────────────────────────────────────
 
-function HomeContent() {
-  const { t } = useTranslation('common');
-  const searchParams = useSearchParams();
+// Reads ?from= in its own Suspense boundary. If the whole page were inside one,
+// React would hydrate it after the saved language is applied, and the text would
+// no longer match what the server rendered.
+function RedirectSource({ onFound }: { onFound: (from: string) => void }) {
+  const from = useSearchParams().get('from') ?? '';
   const router = useRouter();
-  // Freeze the initial value — router.replace() clears searchParams reactively,
-  // which would make the message vanish before the user reads it.
-  const [redirectFrom] = useState(() => searchParams.get('from') ?? '');
-  const pageNameKey = PAGE_NAME_KEYS[redirectFrom];
-  const pageName = pageNameKey ? t(pageNameKey) : t('thatPage');
 
-  // Clear the ?from param from the URL so it's gone on refresh
   useEffect(() => {
-    if (redirectFrom) router.replace('/', { scroll: false });
+    if (!from) return;
+    onFound(from);
+    // Clear the ?from param from the URL so it's gone on refresh
+    router.replace('/', { scroll: false });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  return null;
+}
+
+function HomeContent({ redirectFrom }: { redirectFrom: string }) {
+  const { t } = useTranslation('common');
+  const pageNameKey = PAGE_NAME_KEYS[redirectFrom];
+  const pageName = pageNameKey ? t(pageNameKey) : t('thatPage');
 
   const { user, isLoading, login } = useAuth();
   // undefined = still resolving auth; null = signed out; user = signed in
@@ -709,9 +716,15 @@ function HomeContent() {
 }
 
 export default function Home() {
+  // Kept in state because router.replace() clears the URL param, which would
+  // make the message vanish before the user reads it.
+  const [redirectFrom, setRedirectFrom] = useState('');
   return (
-    <Suspense>
-      <HomeContent />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <RedirectSource onFound={setRedirectFrom} />
+      </Suspense>
+      <HomeContent redirectFrom={redirectFrom} />
+    </>
   );
 }

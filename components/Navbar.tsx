@@ -14,6 +14,7 @@ const NAV_KEYS = [
   { href: '/dashboard', key: 'navDashboard' },
   { href: '/map', key: 'mushafMap' },
   { href: '/journal', key: 'navJournal' },
+  { href: '/companion-test', key: 'navCompanion' },
 ] as const;
 
 const languages = [
