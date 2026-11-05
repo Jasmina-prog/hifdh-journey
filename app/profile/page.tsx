@@ -180,6 +180,8 @@ export default function ProfilePage() {
       email: user.email ?? '',
       dailyGoalPages: profileData?.dailyGoalPages != null ? String(profileData.dailyGoalPages) : '',
       ...extra,
+      journeyStart: profileData?.hifzStartDate?.slice(0, 10) ?? extra.journeyStart,
+
     });
     setHydrated(true);
   }, [user, profileLoading, profileData, hydrated]);
@@ -208,10 +210,14 @@ export default function ProfilePage() {
     });
 
     try {
+      const goal = parseInt(data.dailyGoalPages, 10);
+
       await updateProfile.mutateAsync({
         fullName: data.fullName.trim(),
-        dailyGoalPages: data.dailyGoalPages ? parseInt(data.dailyGoalPages, 10) || null : null,
+        ...(Number.isFinite(goal) ? { dailyGoalPages: goal } : {}),
+        ...(data.journeyStart ? { hifzStartDate: data.journeyStart } : {}),
       });
+
       try { localStorage.setItem('hifdh-last-user-name', data.fullName.trim()); } catch {}
       setSaved(true);
       if (saveTimer.current) clearTimeout(saveTimer.current);

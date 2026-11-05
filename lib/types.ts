@@ -60,4 +60,6 @@ export type WeeklyIntention = {
 export type Profile = {
   fullName: string | null;
   dailyGoalPages: number | null;
+  hifzStartDate: string | null;
 };
+
