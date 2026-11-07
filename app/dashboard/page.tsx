@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/AuthProvider';
-import { useRequireAuth } from '@/lib/useRequireAuth';
+import { GuestBanner } from '@/components/SignInPrompt';
 import { useSurahProgress } from '@/lib/queries/surahProgress';
 import { ProgressRing } from '@/components/ProgressRing';
 import { DuaCard } from '@/components/DuaCard';
@@ -106,14 +106,10 @@ function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
 }
 
 export default function DashboardPage() {
-  const { loading: authLoading } = useRequireAuth();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { t } = useTranslation('common');
   const [userName, setUserName] = useState(() => {
     try { return localStorage.getItem('hifdh-last-user-name') ?? ''; } catch { return ''; }
-  });
-  const [userId, setUserId] = useState<string | null>(() => {
-    try { return localStorage.getItem('hifdh-last-user-id'); } catch { return null; }
   });
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
   const [showHijri, setShowHijri] = useState(false);
@@ -150,15 +146,20 @@ export default function DashboardPage() {
   }, [todayKey]);
 
   useEffect(() => {
-    if (!user) return;
-    setUserId(user.id);
+    if (authLoading) return;
+    if (!user) {
+      // A guest must not see the name or progress of whoever used this browser last.
+      setUserName('');
+      setProgressRows([]);
+      return;
+    }
     try { localStorage.setItem('hifdh-last-user-id', user.id); } catch {}
     const name = user.profile?.fullName || user.email?.split('@')[0].replace(/[._-]+/g, ' ') || '';
     if (name) {
       setUserName(name);
       try { localStorage.setItem('hifdh-last-user-name', name); } catch {}
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!user || !progressData) return;
@@ -215,6 +216,8 @@ export default function DashboardPage() {
     <div className="relative min-h-screen overflow-x-hidden">
       <div className="relative mx-auto w-full max-w-400 px-6 py-10 lg:px-16 lg:py-14">
         <div className="space-y-12">
+
+          <GuestBanner message={t('guestBannerDashboard')} />
 
           {/* ── 1. Greeting ──────────────────────────────────────────────── */}
           <motion.section
@@ -360,9 +363,9 @@ export default function DashboardPage() {
             transition={{ duration: 0.45, delay: 0.18 }}
             className="grid items-stretch gap-10 lg:grid-cols-2"
           >
-            <MonthlyTasks userId={userId} />
+            <MonthlyTasks userId={user?.id ?? null} />
             <WeeklyIntentionCard
-              userId={userId}
+              userId={user?.id ?? null}
               onStatsChange={(done, total) => {
                 setIntentionsDone(done);
                 setIntentionsTotal(total);

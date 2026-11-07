@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/components/AuthProvider';
-import { useRequireAuth } from '@/lib/useRequireAuth';
+import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
 import type { JournalTag as Tag, JournalEntry, VocabWord, JournalMilestone as Milestone } from '@/lib/types';
 import { useJournalEntries, useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry } from '@/lib/queries/journalEntries';
 import { useVocabWords, useCreateVocabWord, useDeleteVocabWord } from '@/lib/queries/vocabWords';
@@ -710,8 +710,8 @@ function WriteModal({ onSave, onClose }: {
 // ─── Inner Page ───────────────────────────────────────────────────────────────
 
 function JournalInner() {
-  const { loading: authLoading } = useRequireAuth();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const { requireSignIn } = useSignInPrompt();
   const userId = user?.id ?? null;
   const { t } = useTranslation('common');
   const searchParams = useSearchParams();
@@ -768,6 +768,7 @@ function JournalInner() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   async function addEntry(e: Omit<JournalEntry, 'id' | 'createdAt' | 'pinned'>) {
+    if (!requireSignIn('journal')) return;
     try {
       await createEntryMutation.mutateAsync({
         content: e.content,
@@ -813,6 +814,7 @@ function JournalInner() {
   }
 
   async function handleAddVocab() {
+    if (!requireSignIn('journal')) return;
     if (!vocabWord.trim() || !vocabMeaning.trim()) return;
     try {
       await createVocabMutation.mutateAsync({
@@ -837,6 +839,7 @@ function JournalInner() {
   }
 
   async function handleAddMilestone() {
+    if (!requireSignIn('journal')) return;
     if (!milestoneText.trim()) return;
     try {
       await createMilestoneMutation.mutateAsync({ text: milestoneText.trim(), emoji: milestoneEmoji, type: 'manual' });
@@ -887,6 +890,8 @@ function JournalInner() {
             <button type="button" onClick={() => setDbError(null)} className="shrink-0 font-bold">✕</button>
           </div>
         )}
+
+        <GuestBanner message={t('guestBannerJournal')} className="mb-6" />
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
@@ -980,7 +985,7 @@ function JournalInner() {
 
               <button
                 type="button"
-                onClick={() => setShowWriteModal(true)}
+                onClick={() => { if (requireSignIn('journal')) setShowWriteModal(true); }}
                 className="mb-4 w-full rounded-xl border border-slate-200 bg-white p-3.5 text-left transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
               >
                 <div className="flex items-center justify-between">
@@ -1062,7 +1067,7 @@ function JournalInner() {
                 )}
               </div>
 
-              <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
+              <div onFocusCapture={() => requireSignIn('journal')} className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
                 <input value={vocabWord} onChange={(e) => setVocabWord(e.target.value)} placeholder={t('arabicWord')} dir="rtl"
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right font-arabic text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
                 <input value={vocabRoot} onChange={(e) => setVocabRoot(e.target.value)} placeholder={t('rootLetters')}
@@ -1102,7 +1107,7 @@ function JournalInner() {
                 )}
               </div>
 
-              <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
+              <div onFocusCapture={() => requireSignIn('journal')} className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
                 <div className="flex gap-2">
                   <CustomSelect
                     value={milestoneEmoji}

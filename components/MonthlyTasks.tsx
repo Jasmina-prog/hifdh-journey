@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMonthlyTasksYear, useCreateMonthlyTask, useUpdateMonthlyTask, useDeleteMonthlyTask } from '@/lib/queries/monthlyTasks';
+import { useSignInPrompt } from '@/components/SignInPrompt';
 import type { MonthlyTask } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -206,6 +207,7 @@ function TaskRow({ task, editable, onToggle, onDelete, onEdit }: {
 
 export function MonthlyTasks({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation('common');
+  const { requireSignIn } = useSignInPrompt();
   const locale = i18n.language;
   const [viewingMonth, setViewingMonth] = useState(currentMonthKey());
   const [input,        setInput]        = useState('');
@@ -221,6 +223,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
   // ── CRUD ────────────────────────────────────────────────────────────────────
 
   async function addTask() {
+    if (!requireSignIn()) return;
     const title = input.trim();
     if (!title || !userId) return;
     setInput('');
@@ -361,6 +364,7 @@ export function MonthlyTasks({ userId }: { userId: string | null }) {
               <input
                 ref={inputRef}
                 value={input}
+                onFocus={() => requireSignIn()}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addTask(); }}
                 placeholder={isViewingFuture ? t('goalPlaceholderFuture', { month: monthFull(monthIdx, locale) }) : t('goalPlaceholder')}

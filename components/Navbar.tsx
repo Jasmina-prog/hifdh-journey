@@ -9,13 +9,15 @@ import { useTheme } from './ThemeProvider';
 import { IslamicThemeToggle } from './IslamicToggle';
 import { useAuth } from './AuthProvider';
 
-const NAV_KEYS = [
+type NavItem = { href: string; key: string; beta?: boolean };
+
+const NAV_KEYS: NavItem[] = [
   { href: '/', key: 'navHome' },
   { href: '/dashboard', key: 'navDashboard' },
   { href: '/map', key: 'mushafMap' },
   { href: '/journal', key: 'navJournal' },
-  { href: '/companion-test', key: 'navCompanion' },
-] as const;
+  { href: '/memorize', key: 'navCompanion', beta: true },
+];
 
 const languages = [
   { code: 'en', name: 'EN' },
@@ -80,6 +82,15 @@ function LanguageSwitcher({ current, onChange }: { current: string; onChange: (l
   );
 }
 
+function BetaBadge() {
+  const { t } = useTranslation('common');
+  return (
+    <span className="ml-1.5 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px align-middle text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+      {t('companionBeta')}
+    </span>
+  );
+}
+
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
 export function Navbar() {
@@ -129,6 +140,7 @@ export function Navbar() {
               }`}
             >
               {t(item.key)}
+              {item.beta && <BetaBadge />}
             </Link>
           ))}
 
@@ -230,6 +242,7 @@ export function Navbar() {
                   }`}
                 >
                   {t(item.key)}
+              {item.beta && <BetaBadge />}
                 </Link>
               ))}
             </nav>

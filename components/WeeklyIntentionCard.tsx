@@ -8,6 +8,7 @@ import {
   useUpdateWeeklyIntention,
   useDeleteWeeklyIntention,
 } from '@/lib/queries/weeklyIntentions';
+import { useSignInPrompt } from '@/components/SignInPrompt';
 import type { WeeklyIntention } from '@/lib/types';
 
 type Task = WeeklyIntention;
@@ -25,6 +26,7 @@ type Props = {
 
 export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
   const { t } = useTranslation('common');
+  const { requireSignIn } = useSignInPrompt();
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -45,6 +47,7 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
   }, [tasks]);
 
   async function addTask() {
+    if (!requireSignIn()) return;
     const text = input.trim();
     if (!text || !userId) return;
     setInput('');
@@ -185,6 +188,7 @@ export function WeeklyIntentionCard({ userId, onStatsChange }: Props) {
         <input
           ref={inputRef}
           value={input}
+          onFocus={() => requireSignIn()}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') addTask(); }}
           placeholder={t('addIntention')}

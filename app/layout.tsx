@@ -10,6 +10,7 @@ import { IslamicPattern } from '@/components/IslamicPattern';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { AuthProvider } from '@/components/AuthProvider';
 import { QueryProvider } from '@/components/QueryProvider';
+import { SignInPromptProvider } from '@/components/SignInPrompt';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -46,12 +47,14 @@ export default function RootLayout({
           <Providers>
             <QueryProvider>
               <AuthProvider>
-                <IslamicPattern />
-                <Navbar />
-                <main className="flex min-h-[calc(100vh-5.5rem)] flex-col">{children}</main>
-                <Footer />
-                <FeedbackWidget />
-                <PwaUpdateBanner />
+                <SignInPromptProvider>
+                  <IslamicPattern />
+                  <Navbar />
+                  <main className="flex min-h-[calc(100vh-5.5rem)] flex-col">{children}</main>
+                  <Footer />
+                  <FeedbackWidget />
+                  <PwaUpdateBanner />
+                </SignInPromptProvider>
               </AuthProvider>
             </QueryProvider>
           </Providers>

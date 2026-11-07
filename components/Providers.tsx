@@ -4,12 +4,21 @@ import { useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/lib/i18n';
 
+function detectLanguage(): string | null {
+  const browser = navigator.language.toLowerCase();
+  if (browser.startsWith('uz')) return 'uz';
+  if (browser.startsWith('ru')) return 'ru';
+  return window.location.hostname.endsWith('.uz') ? 'uz' : null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('i18n-language');
-      if (saved && saved !== i18n.language) {
-        i18n.changeLanguage(saved);
+      // A saved choice wins. Otherwise visitors from Uzbekistan get Uzbek and
+      // Russian-speaking browsers get Russian, instead of English.
+      const language = localStorage.getItem('i18n-language') ?? detectLanguage();
+      if (language && language !== i18n.language) {
+        i18n.changeLanguage(language);
       }
     } catch {
       // localStorage unavailable

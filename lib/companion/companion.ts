@@ -35,6 +35,10 @@ export type CompanionSnapshot = {
   /** Set when hints ran out or the user went ahead: this ayah must be finished first. */
   waitingOnAyah: string | null;
   stuckAfterMs: number;
+  /** When the user last made progress (or the last hint ended). A hint is due at this plus stuckAfterMs. */
+  lastMoveAt: number;
+  /** False while a hint plays, when hints have run out, or when the user is behind the frontier. */
+  canHint: boolean;
   heard: string[];
   heardIndexes: number[];
   hintedIndexes: number[];
@@ -400,6 +404,8 @@ export function createCompanion(words: CompanionWord[], startIndex: number) {
         finished: finished(),
         waitingOnAyah: !finished() && (hintsExhausted || wentAheadOfAyah) ? words[pointer].verseKey : null,
         stuckAfterMs: stuckAfterMs(),
+        lastMoveAt,
+        canHint: !hinting && !finished() && !hintsExhausted && pointer === frontier,
         heard: tail(),
         heardIndexes: [...heardIndexes],
         hintedIndexes: [...hintedIndexes],

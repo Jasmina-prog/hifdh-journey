@@ -7,6 +7,7 @@ import {
   motion,
   useInView,
   useMotionValue,
+  useReducedMotion,
   useSpring,
   useTransform,
   animate,
@@ -100,20 +101,22 @@ function Divider() {
 
 // ─── Count-up number ─────────────────────────────────────────────────────────
 
+// The final number is what the page renders (and what the server sends), so it is
+// right for anything that reads the page without scrolling to it. The count-up
+// plays once when it first scrolls into view, then stays at the final number.
 function CountUp({ to, suffix = '' }: { to: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: false, margin: '-80px' });
-  const raw = useMotionValue(0);
-  const spring = useSpring(raw, { stiffness: 60, damping: 18 });
-  const display = useTransform(spring, (v) => Math.round(v).toString() + suffix);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+  const reduceMotion = useReducedMotion();
+  const value = useMotionValue(to);
+  const display = useTransform(value, (v) => Math.round(v).toString() + suffix);
 
   useEffect(() => {
-    if (inView) {
-      animate(raw, to, { duration: 1.6, ease: 'easeOut' });
-    } else {
-      raw.set(0);
-    }
-  }, [inView, raw, to]);
+    if (!inView || reduceMotion) return;
+    value.set(0);
+    const controls = animate(value, to, { duration: 1.4, ease: 'easeOut' });
+    return () => controls.stop();
+  }, [inView, reduceMotion, to, value]);
 
   return <motion.span ref={ref}>{display}</motion.span>;
 }
@@ -470,7 +473,7 @@ function HomeContent({ redirectFrom }: { redirectFrom: string }) {
       <div className="flex flex-col items-start gap-3">
         {redirectBadge}
         <GoldButton onClick={() => signIn()}>
-          {t('signInWithGoogle')}
+          {t('startYourHifdh')}
         </GoldButton>
       </div>
     );
@@ -702,7 +705,7 @@ function HomeContent({ redirectFrom }: { redirectFrom: string }) {
               ) : (
                 <>
                   <GoldButton dark onClick={() => signIn()}>
-                    {t('signInWithGoogle')}
+                    {t('startYourHifdh')}
                   </GoldButton>
                 </>
               )}

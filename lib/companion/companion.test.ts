@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createCompanion, type CompanionWord } from './companion.ts';
 import { hasWaqfMark, normalizeArabic, tokenize } from './matcher.ts';
-import { summarizeSession } from './sessionResult.ts';
+import { summarizeSession, weakAyahs } from './sessionResult.ts';
 
 function surah(ayahs: string[]): CompanionWord[] {
   return ayahs.flatMap((ayah, a) =>
@@ -613,4 +613,42 @@ test('a qari hint is summarized as the whole ayah', () => {
     { verseKey: '1:1', word: TWO_AYAHS[8].text, hints: 1 },
     { verseKey: '1:1', word: undefined, hints: 1 },
   ]);
+});
+
+test('the snapshot says when the last progress was and whether a hint can come', () => {
+  const companion = createCompanion(TWO_AYAHS, 0);
+  companion.start(1000);
+  assert.equal(companion.snapshot().lastMoveAt, 1000);
+  assert.equal(companion.snapshot().canHint, true);
+
+  companion.tap(2000);
+  assert.equal(companion.snapshot().canHint, false, 'no countdown while a hint is playing');
+  companion.hintFinished(2500);
+  assert.equal(companion.snapshot().lastMoveAt, 2500);
+  assert.equal(companion.snapshot().canHint, true);
+});
+
+test('hints are counted for each ayah, so weak ayahs can be found later', () => {
+  const companion = createCompanion(TWO_AYAHS, 0);
+  companion.start(0);
+  companion.hear({ final: spoken(TWO_AYAHS, 0, 8) }, 0);
+  companion.tap(1000);
+  companion.hintFinished(1000);
+  companion.tap(2000);
+  companion.hintFinished(2000);
+  companion.tap(3000);
+  companion.hintFinished(3000);
+  const result = summarizeSession(companion.snapshot(), TWO_AYAHS, { surah: 7, startAyah: 1, seconds: 3, savedAt: 1 });
+  assert.deepEqual(result.ayahHints, { '1:1': 3 });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)).ayahHints, { '1:1': 3 });
+});
+
+test('weak ayahs are listed most hints first, also for results saved before ayah counts existed', () => {
+  const base = { surah: 1, startAyah: 1, reached: '1:3', wordsCovered: 9, hints: 4, seconds: 5, recognizedPercent: 80, savedAt: 1 };
+  const withCounts = { ...base, ayahHints: { '1:1': 1, '1:3': 3 }, review: [] };
+  assert.deepEqual(weakAyahs(withCounts), [{ verseKey: '1:3', hints: 3 }, { verseKey: '1:1', hints: 1 }]);
+
+  const older = { ...base, review: [{ verseKey: '1:2', word: 'x', hints: 2 }, { verseKey: '1:2', hints: 1 }, { verseKey: '1:1', word: 'y', hints: 1 }] };
+  assert.deepEqual(weakAyahs(older), [{ verseKey: '1:2', hints: 3 }, { verseKey: '1:1', hints: 1 }]);
+  assert.deepEqual(weakAyahs({ ...base, hints: 0, review: [] }), []);
 });

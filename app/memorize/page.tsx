@@ -1,9 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/components/AuthProvider';
+import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
+import { ManualPractice } from './ManualPractice';
 import { PickerSelect, type PickerOption } from '@/components/PickerSelect';
 import { SURAH_NAMES } from '@/lib/surahNames';
 import {
@@ -14,7 +16,8 @@ import {
   type HintRequest,
 } from '@/lib/companion/companion';
 import { ayahAudioUrl, fetchSurahWords, RECITERS, type ReciterId } from '@/lib/companion/quranWords';
-import { coveragePercent, summarizeSession, type SessionResult } from '@/lib/companion/sessionResult';
+import { coveragePercent, summarizeSession, weakAyahs, type SessionResult } from '@/lib/companion/sessionResult';
+import { useCreateJournalEntry } from '@/lib/queries/journalEntries';
 import { createWebAudioMouth, type WebAudioMouth } from '@/lib/companion/webAudio';
 import { loadResults, saveResult, type SavedResults } from '@/lib/companion/webResultStore';
 import { createWebSpeechEars, isSpeechRecognitionSupported, type WebSpeechEars } from '@/lib/companion/webSpeech';
@@ -98,9 +101,13 @@ function LinkedSurah({ onChange }: { onChange: (surah: number) => void }) {
   return null;
 }
 
-export default function CompanionTestPage() {
+export default function MemorizePage() {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
+  const { requireSignIn } = useSignInPrompt();
+  const createJournalEntry = useCreateJournalEntry();
+  // What happened when each result was added to the journal this visit, by its save time.
+  const [journaled, setJournaled] = useState<Record<number, 'saved' | 'failed'>>({});
   const userId = user?.id ?? null;
   const [phase, setPhase] = useState<Phase>('setup');
   const [surah, setSurah] = useState(1);
@@ -115,6 +122,10 @@ export default function CompanionTestPage() {
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [snapshot, setSnapshot] = useState<CompanionSnapshot | null>(null);
   const [liveText, setLiveText] = useState('');
+  // For the status line: when the mic last picked up speech, and a clock that ticks while running.
+  const [manual, setManual] = useState<{ words: CompanionWord[]; surah: number; startAyah: number; reciter: ReciterId } | null>(null);
+  const [heardAt, setHeardAt] = useState(0);
+  const [clock, setClock] = useState(0);
   const [listening, setListening] = useState(false);
   const [showText, setShowText] = useState(false);
   const [error, setError] = useState('');
@@ -272,7 +283,54 @@ export default function CompanionTestPage() {
     mouthRef.current?.preloadWords(allWords.slice(pointer, pointer + PRELOAD_WORDS).map((word) => word.audioUrl));
   }
 
+  // Browsers that can't listen get self-graded practice instead of a dead end.
+  async function startManual() {
+    shutDown();
+    setError('');
+    setPhase('loading');
+    try {
+      const allWords = await loadWords(surah);
+      setManual({ words: allWords, surah, startAyah, reciter });
+    } catch (cause) {
+      console.error('Could not load the surah:', cause);
+      setError(t('companionLoadError'));
+    }
+    setPhase('setup');
+  }
+
+  // The weakest ayahs go into the Journal, where they feed the Friday review.
+  async function addToJournal(result: SessionResult) {
+    if (!requireSignIn('journal')) return;
+    const weak = weakAyahs(result);
+    try {
+      await createJournalEntry.mutateAsync({
+        tag: 'struggle',
+        surahNumber: result.surah,
+        ayahNumber: weak[0] ? Number(weak[0].verseKey.split(':')[1]) : undefined,
+        content: t('companionJournalEntry', {
+          surah: SURAH_NAMES[result.surah - 1],
+          reached: result.reached,
+          hints: result.hints,
+          ayahs: weak.map(({ verseKey, hints }) => `${verseKey} (${hints}×)`).join(', '),
+        }),
+      });
+      setJournaled((done) => ({ ...done, [result.savedAt]: 'saved' }));
+    } catch {
+      setJournaled((done) => ({ ...done, [result.savedAt]: 'failed' }));
+    }
+  }
+
+  function finishManual(result: SessionResult | null) {
+    setManual(null);
+    if (result) setSavedResults(saveResult(userIdRef.current, result));
+  }
+
   async function start() {
+    if (!requireSignIn('memorize')) return;
+    if (!supported) {
+      await startManual();
+      return;
+    }
     shutDown();
     const session = sessionRef.current;
     setPhase('loading');
@@ -294,6 +352,7 @@ export default function CompanionTestPage() {
     const ears = createWebSpeechEars({
       onTranscript: ({ final, interim }) => {
         setLiveText(interim || final || '');
+        if (interim || final) setHeardAt(now());
         const companion = companionRef.current;
         if (!companion) return;
         const before = companion.snapshot().pointer;
@@ -339,6 +398,7 @@ export default function CompanionTestPage() {
       tickerRef.current = setInterval(() => {
         const current = companionRef.current;
         if (!current) return;
+        setClock(now());
         const hint = current.tick(now());
         if (hint) {
           playHint(hint, allWords);
@@ -413,14 +473,18 @@ export default function CompanionTestPage() {
 
   const visibleAyahs = useMemo(() => {
     const firstAyah = pointerWord ? pointerWord.ayah - AYAHS_BEHIND : startAyah;
-    const lastAyah = pointerWord ? pointerWord.ayah + AYAHS_AHEAD : startAyah + PREVIEW_AYAHS - 1;
+    const previewEnd = startAyah + PREVIEW_AYAHS - 1;
+    // Don't cut off the last ayah or two of a short surah. Al-Fatihah has 7.
+    const lastAyah = pointerWord
+      ? pointerWord.ayah + AYAHS_AHEAD
+      : ayahCount - previewEnd <= 2 ? ayahCount : previewEnd;
     const ayahs = new Map<number, { word: CompanionWord; index: number }[]>();
     words.forEach((word, index) => {
       if (word.ayah < firstAyah || word.ayah > lastAyah) return;
       ayahs.set(word.ayah, [...(ayahs.get(word.ayah) ?? []), { word, index }]);
     });
     return [...ayahs.entries()];
-  }, [words, pointerWord, startAyah]);
+  }, [words, pointerWord, startAyah, ayahCount]);
 
   // Text stays hidden until the session ends, unless the user chooses to show it.
   const hideText = phase !== 'stopped' && !showText;
@@ -436,16 +500,18 @@ export default function CompanionTestPage() {
 
   const hasSession = (phase === 'running' || phase === 'stopped') && snapshot !== null;
   const canStartAgain = hasSession || savedResult?.startAyah === startAyah;
-  const selectionLocked = phase === 'loading' || phase === 'running';
+  const selectionLocked = phase === 'loading' || phase === 'running' || manual !== null;
 
   const ayahText = (
     <div dir="rtl" data-testid="ayah-text" className="font-arabic text-2xl leading-[2.4] sm:text-3xl lg:text-4xl lg:leading-[2.2]">
       {visibleAyahs.map(([ayah, ayahWords]) => (
         <span key={ayah}>
           {ayahWords.map(({ word, index }) => (
-            <span key={index} data-word-index={index} className={`mx-0.5 inline-block transition-colors ${wordClass(index)}`}>
-              {word.text}
-            </span>
+            <Fragment key={index}>
+              <span data-word-index={index} className={`inline-block transition-colors ${wordClass(index)}`}>
+                {word.text}
+              </span>{' '}
+            </Fragment>
           ))}
           {phase === 'stopped' && hasSession ? (
             <span className="mx-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 align-middle font-sans text-xs text-slate-400 dark:border-slate-800">
@@ -480,11 +546,17 @@ export default function CompanionTestPage() {
       <Suspense fallback={null}>
         <LinkedSurah onChange={openLinkedSurah} />
       </Suspense>
-      <h1 className="text-2xl font-bold">{t('companionTitle')}</h1>
+      <GuestBanner message={t('signInReasonMemorize')} className="mb-5" />
+      <div className="flex items-center gap-3">
+        <h1 className="text-2xl font-bold">{t('companionTitle')}</h1>
+        <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+          {t('companionBeta')}
+        </span>
+      </div>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('companionIntro')}</p>
 
       {!supported && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+        <p data-testid="no-mic-notice" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
           {t('companionUnsupported')}
         </p>
       )}
@@ -536,7 +608,7 @@ export default function CompanionTestPage() {
           <button
             key="start"
             type="submit"
-            disabled={!supported || phase === 'loading'}
+            disabled={phase === 'loading' || manual !== null}
             className="h-11 rounded-xl bg-emerald-600 px-6 font-semibold text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:opacity-50 sm:col-span-2 lg:col-span-1"
           >
             {phase === 'loading' ? t('companionLoading') : canStartAgain ? t('companionStartAgain') : t('companionStart')}
@@ -544,7 +616,18 @@ export default function CompanionTestPage() {
         )}
       </form>
 
-      {!hasSession && (
+      {manual && (
+        <ManualPractice
+          key={`${manual.surah}-${manual.startAyah}`}
+          words={manual.words}
+          surah={manual.surah}
+          startAyah={manual.startAyah}
+          reciter={manual.reciter}
+          onFinish={finishManual}
+        />
+      )}
+
+      {!hasSession && !manual && (
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900/60">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h2 className="text-lg font-semibold">{surah}. {SURAH_NAMES[surah - 1]}</h2>
@@ -570,17 +653,14 @@ export default function CompanionTestPage() {
         </section>
       )}
 
-      {!hasSession && savedResult && <SessionResultCard result={savedResult} title={t('companionLastResult')} />}
+      {!hasSession && !manual && savedResult && <SessionResultCard result={savedResult} title={t('companionLastResult')} onAddToJournal={() => void addToJournal(savedResult)} journalState={journaled[savedResult.savedAt]} />}
 
       {hasSession && snapshot && (
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0">
               {phase === 'running' && (
                 <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className="mr-auto flex items-center gap-2 text-sm font-medium" aria-live="polite">
-                    <span className={`h-2.5 w-2.5 rounded-full ${snapshot.hinting ? 'bg-amber-400' : listening ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`} />
-                    {t(snapshot.hinting ? 'companionPlayingHint' : listening ? 'companionListening' : 'companionMicOff')}
-                  </span>
+                  <MicStatus snapshot={snapshot} listening={listening} heardAgoMs={clock - heardAt} clock={clock} />
                   <button type="button" onClick={() => setShowText((v) => !v)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-700">
                     {showText ? t('companionHideText') : t('companionShowText')}
                   </button>
@@ -616,10 +696,12 @@ export default function CompanionTestPage() {
                     title={t('companionResult')}
                     copyState={copyState}
                     onCopy={copyReport}
+                    onAddToJournal={() => void addToJournal(savedResult)}
+                    journalState={journaled[savedResult.savedAt]}
                   />
                 ) : (
                   // Nothing was recited this time, so what's saved is still the earlier session.
-                  <SessionResultCard result={savedResult} title={t('companionLastResult')} />
+                  <SessionResultCard result={savedResult} title={t('companionLastResult')} onAddToJournal={() => void addToJournal(savedResult)} journalState={journaled[savedResult.savedAt]} />
                 )
               )}
           </div>
@@ -646,18 +728,66 @@ export default function CompanionTestPage() {
   );
 }
 
-function SessionResultCard({ result, title, copyState = 'idle', onCopy }: {
+// Shows what the app is doing, so a quiet moment never looks like a frozen app.
+const HEARD_FLASH_MS = 1200;
+const COUNTDOWN_FROM_MS = 3000;
+
+function MicStatus({ snapshot, listening, heardAgoMs, clock }: {
+  snapshot: CompanionSnapshot;
+  listening: boolean;
+  heardAgoMs: number;
+  clock: number;
+}) {
+  const { t } = useTranslation();
+  const hintInMs = snapshot.canHint ? snapshot.lastMoveAt + snapshot.stuckAfterMs - clock : null;
+
+  let dot = 'animate-pulse bg-emerald-500';
+  let label = t('companionListening');
+  let countdown: number | null = null;
+  if (snapshot.hinting) {
+    dot = 'bg-amber-400';
+    label = t('companionPlayingHint');
+  } else if (!listening) {
+    dot = 'bg-slate-400';
+    label = t('companionMicOff');
+  } else if (heardAgoMs < HEARD_FLASH_MS) {
+    dot = 'bg-emerald-500';
+    label = t('companionStatusHeard');
+  } else if (hintInMs !== null && hintInMs <= COUNTDOWN_FROM_MS) {
+    dot = 'animate-pulse bg-amber-400';
+    label = t('companionStatusHintIn', { seconds: Math.max(1, Math.ceil(hintInMs / 1000)) });
+    countdown = Math.max(0, hintInMs) / COUNTDOWN_FROM_MS;
+  }
+
+  return (
+    <span data-testid="mic-status" className="mr-auto flex items-center gap-2 text-sm font-medium" aria-live="polite">
+      <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+      {label}
+      {countdown !== null && (
+        <span className="h-1 w-16 overflow-hidden rounded-full bg-amber-100 dark:bg-amber-900/40" aria-hidden>
+          <span className="block h-full rounded-full bg-amber-400 transition-[width] duration-200" style={{ width: `${countdown * 100}%` }} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+function SessionResultCard({ result, title, copyState = 'idle', onCopy, onAddToJournal, journalState }: {
   result: SessionResult;
   title: string;
   copyState?: 'idle' | 'copied' | 'failed';
   /** Only a session just finished has the details behind the technical report. */
   onCopy?: () => void;
+  onAddToJournal?: () => void;
+  journalState?: 'saved' | 'failed';
 }) {
   const { t, i18n } = useTranslation();
   const time = `${Math.floor(result.seconds / 60)}:${String(result.seconds % 60).padStart(2, '0')}`;
   const savedOn = new Date(result.savedAt).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
 
-  const recognition = result.wordsCovered < 20
+  const recognition = result.mode === 'manual'
+    ? t('companionManualNote')
+    : result.wordsCovered < 20
     ? t('companionTooFewWords')
     : result.recognizedPercent >= USABLE_COVERAGE
       ? t('companionRecognitionGood', { percent: result.recognizedPercent })
@@ -705,7 +835,14 @@ function SessionResultCard({ result, title, copyState = 'idle', onCopy }: {
         <span aria-live="polite">
           {copyState === 'copied' && t('companionCopied')}
           {copyState === 'failed' && t('companionCopyFailed')}
+          {journalState === 'saved' && t('companionJournalAdded')}
+          {journalState === 'failed' && t('companionJournalFailed')}
         </span>
+        {onAddToJournal && result.hints > 0 && journalState !== 'saved' && (
+          <button type="button" data-testid="add-to-journal" onClick={onAddToJournal} className="rounded-lg border border-slate-200 px-2.5 py-1 font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            {t('companionJournalAdd')}
+          </button>
+        )}
         {onCopy && (
           <button type="button" onClick={onCopy} className="rounded-lg border border-slate-200 px-2.5 py-1 font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
             {t('companionCopyReport')}

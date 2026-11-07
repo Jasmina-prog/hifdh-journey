@@ -5,11 +5,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
-import { useRequireAuth } from '@/lib/useRequireAuth';
+import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
 import { useSurahProgress, useUpsertSurahProgress } from '@/lib/queries/surahProgress';
 import { useJournalEntries } from '@/lib/queries/journalEntries';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
 import { contentToPlainText } from '@/lib/richText';
+import { weakAyahs, type SessionResult } from '@/lib/companion/sessionResult';
+import { loadResults, type SavedResults } from '@/lib/companion/webResultStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,10 +88,14 @@ function daysAgo(dateStr: string | null, neverLabel: string, todayLabel: string,
 const containerV = { hidden: {}, show: { transition: { staggerChildren: 0.02 } } };
 const itemV = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
 
+// A practice that needed this many hints counts as weak for the Friday review.
+const HINT_HEAVY = 3;
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MapPage() {
-  const { loading: authLoading } = useRequireAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const { requireSignIn } = useSignInPrompt();
   const { t } = useTranslation('common');
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -111,8 +117,6 @@ export default function MapPage() {
   const notesTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedReset = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { user } = useAuth();
-
   // ── Hydration-safe localStorage load ──
   useEffect(() => {
     const uid = getCachedUserId();
@@ -124,16 +128,28 @@ export default function MapPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      // A guest must not see the progress of whoever used this browser last.
+      setUserId(null);
+      setProgress(new Map());
+      return;
+    }
     try { localStorage.setItem(USER_ID_KEY, user.id); } catch {}
     setUserId((prev) => (prev === user.id ? prev : user.id));
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!userId) return;
     const local = loadLocalProgress(userId);
     if (local.size > 0) setProgress(local);
   }, [userId]);
+
+  // Results of memorization practice, kept in this browser per user.
+  const [practice, setPractice] = useState<SavedResults>({});
+  useEffect(() => {
+    setPractice(user ? loadResults(user.id) : {});
+  }, [user]);
 
   // ── Surah metadata ──
   useEffect(() => {
@@ -165,7 +181,7 @@ export default function MapPage() {
   }, []);
 
   // ── API sync ──
-  const { data: progressData } = useSurahProgress({}, !!userId);
+  const { data: progressData } = useSurahProgress({}, !!user);
   const upsertProgress = useUpsertSurahProgress();
 
   useEffect(() => {
@@ -228,6 +244,7 @@ export default function MapPage() {
   }
 
   async function markAsLastRead(num: number) {
+    if (!requireSignIn('map')) return;
     if (!userId) return;
     setSaveState('saving');
     const now = new Date().toISOString();
@@ -258,6 +275,7 @@ export default function MapPage() {
   }
 
   function handleStatusChange(status: Status) {
+    if (!requireSignIn('map')) return;
     setPanelStatus(status);
     if (!selectedSurah || !userId) return;
     const now = new Date().toISOString();
@@ -275,6 +293,7 @@ export default function MapPage() {
   }
 
   function handleNotesChange(notes: string) {
+    if (!requireSignIn('map')) return;
     setPanelNotes(notes);
     if (notesTimeout.current) clearTimeout(notesTimeout.current);
     notesTimeout.current = setTimeout(() => {
@@ -304,11 +323,19 @@ export default function MapPage() {
     }));
 
   const isFriday = typeof window !== 'undefined' ? new Date().getDay() === 5 : false;
+  // Surahs that needed many hints in practice come first, then the longest unreviewed.
+  const hintHeavy = Object.values(practice)
+    .filter((r) => r.hints >= HINT_HEAVY)
+    .sort((a, b) => b.hints - a.hints)
+    .map((r) => r.surah);
   const fridaySuggestions = isFriday
-    ? [...progress.entries()]
-        .filter(([, p]) => p.status === 'memorized' || p.status === 'in_progress')
-        .sort((a, b) => (a[1].lastReviewed ? new Date(a[1].lastReviewed).getTime() : 0) - (b[1].lastReviewed ? new Date(b[1].lastReviewed).getTime() : 0))
-        .slice(0, 3).map(([n]) => n)
+    ? [...new Set([
+        ...hintHeavy,
+        ...[...progress.entries()]
+          .filter(([, p]) => p.status === 'memorized' || p.status === 'in_progress')
+          .sort((a, b) => (a[1].lastReviewed ? new Date(a[1].lastReviewed).getTime() : 0) - (b[1].lastReviewed ? new Date(b[1].lastReviewed).getTime() : 0))
+          .map(([n]) => n),
+      ])].slice(0, 3)
     : [];
 
   const getStatus = (n: number): Status => progress.get(n)?.status ?? 'not_started';
@@ -327,6 +354,8 @@ export default function MapPage() {
   return (
     <div className="relative min-h-screen">
       <div className="mx-auto w-full max-w-400 px-4 py-8 sm:px-6 lg:px-16 lg:py-12">
+
+        <GuestBanner message={t('guestBannerMap')} className="mb-6" />
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
@@ -489,6 +518,7 @@ export default function MapPage() {
                 <SidePanel
                   surah={selectedMeta}
                   progress={selectedProgress ?? null}
+                practice={practice[selectedSurah] ?? null}
                   panelStatus={panelStatus}
                   panelNotes={panelNotes}
                   saveState={saveState}
@@ -526,6 +556,7 @@ export default function MapPage() {
               <SidePanel
                 surah={selectedMeta}
                 progress={selectedProgress ?? null}
+                practice={practice[selectedSurah] ?? null}
                 panelStatus={panelStatus}
                 panelNotes={panelNotes}
                 saveState={saveState}
@@ -547,24 +578,27 @@ export default function MapPage() {
 // ─── Side Panel (shared between desktop and mobile) ───────────────────────────
 
 function SidePanel({
-  surah, progress, panelStatus, panelNotes, saveState, userId, t,
+  surah, progress, practice, panelStatus, panelNotes, saveState, userId, t,
   onClose, onStatusChange, onNotesChange, onMarkLastRead,
 }: {
   surah: SurahMeta;
   progress: SurahProgress | null;
+  practice: SessionResult | null;
   panelStatus: Status;
   panelNotes: string;
   saveState: SaveState;
   userId: string | null;
-  t: (k: string) => string;
+  t: (k: string, options?: Record<string, unknown>) => string;
   onClose: () => void;
   onStatusChange: (s: Status) => void;
   onNotesChange: (n: string) => void;
   onMarkLastRead: () => void;
 }) {
   const cfg = STATUS_CONFIG[panelStatus];
+  const { requireSignIn } = useSignInPrompt();
+  const { isAuthenticated } = useAuth();
 
-  const { data: reflectionsData } = useJournalEntries({ surahNumber: surah.number }, !!userId);
+  const { data: reflectionsData } = useJournalEntries({ surahNumber: surah.number }, !!userId && isAuthenticated);
   const reflections = (reflectionsData?.data ?? []).slice(0, 3);
 
   return (
@@ -640,6 +674,7 @@ function SidePanel({
       <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('quickNotes')}</p>
       <textarea
         value={panelNotes}
+        onFocus={() => requireSignIn('map')}
         onChange={(e) => onNotesChange(e.target.value)}
         placeholder={t('notesPlaceholder')}
         rows={3}
@@ -651,7 +686,7 @@ function SidePanel({
       {/* Actions */}
       <motion.button
         onClick={onMarkLastRead}
-        disabled={!userId || saveState === 'saving'}
+        disabled={saveState === 'saving'}
         whileTap={{ scale: 0.97 }}
         animate={saveState === 'saved' ? { scale: [1, 1.03, 1] } : {}}
         transition={{ duration: 0.2 }}
@@ -687,11 +722,32 @@ function SidePanel({
       </a>
 
       <Link
-        href={`/companion-test?surah=${surah.number}`}
+        href={`/memorize?surah=${surah.number}`}
         className="mt-2 block text-center text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-500 transition"
       >
         {t('practiceWithCompanion')}
       </Link>
+
+      {practice && (
+        <>
+          <hr className="my-4 border-slate-100 dark:border-slate-800" />
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('practiceLastTitle')}</p>
+          {weakAyahs(practice).length === 0 ? (
+            <p className="text-xs text-slate-600 dark:text-slate-300">{t('companionNoHintsNeeded')}</p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{t('practiceWeakAyahs')}</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {weakAyahs(practice).slice(0, 6).map(({ verseKey, hints }) => (
+                  <li key={verseKey} className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                    {t('companionAyah', { number: verseKey.split(':')[1] })}{hints > 1 && ` · ${hints}×`}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
 
       {/* Reflections from Journal */}
       <hr className="my-4 border-slate-100 dark:border-slate-800" />

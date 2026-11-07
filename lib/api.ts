@@ -30,7 +30,8 @@ async function request<T>(
   if (res.status === 401 && allowRetry) {
     const newToken = await refreshAccessToken();
     if (newToken) return request<T>(path, init, false);
-    if (typeof window !== 'undefined') window.location.href = '/';
+    // No redirect here. Guests can browse every page except Profile, which
+    // sends signed-out visitors home itself.
     throw new ApiError('Session expired', 401);
   }
 

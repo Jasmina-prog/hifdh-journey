@@ -27,6 +27,10 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  async redirects() {
+    // The page used to live at /companion-test while it was being built.
+    return [{ source: '/companion-test', destination: '/memorize', permanent: true }];
+  },
 };
 
 export default withPWA(nextConfig);
