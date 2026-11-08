@@ -43,14 +43,31 @@ function toArabicDigits(n: number) {
   return String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
 }
 
+// The Quran text is served from this app's own files (public/quran), not an outside API.
+// Rows are [ayah, position, uthmani, imlaei, audio file number].
+const surahCache = new Map<number, Promise<[number, number, string, string, number][]>>();
+
+function loadSurahRows(surah: number) {
+  let rows = surahCache.get(surah);
+  if (!rows) {
+    rows = fetch(`/quran/${surah}.json`, { signal: AbortSignal.timeout(15000) }).then((res) => {
+      if (!res.ok) throw new Error(`Failed to load surah ${surah}`);
+      return res.json();
+    });
+    rows.catch(() => surahCache.delete(surah));
+    surahCache.set(surah, rows);
+  }
+  return rows;
+}
+
 async function fetchAyahs(surah: number, from: number, to: number): Promise<string> {
-  const numbers = Array.from({ length: to - from + 1 }, (_, i) => from + i);
-  const verses = await Promise.all(numbers.map(async (n) => {
-    const res = await fetch(`https://api.quran.com/api/v4/verses/by_key/${surah}:${n}?fields=text_uthmani`);
-    if (!res.ok) throw new Error(`Failed to load ${surah}:${n}`);
-    const data = (await res.json()) as { verse: { text_uthmani: string } };
-    return `${data.verse.text_uthmani.trim()} ﴿${toArabicDigits(n)}﴾`;
-  }));
+  const rows = await loadSurahRows(surah);
+  const verses: string[] = [];
+  for (let n = from; n <= to; n++) {
+    const words = rows.filter(([ayah]) => ayah === n).map(([, , text]) => text);
+    if (words.length === 0) throw new Error(`No ayah ${surah}:${n}`);
+    verses.push(`${words.join(' ')} ﴿${toArabicDigits(n)}﴾`);
+  }
   return verses.join(' ');
 }
 
