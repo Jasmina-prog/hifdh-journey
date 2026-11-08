@@ -817,7 +817,7 @@ function SessionResultCard({ result, title, copyState = 'idle', onCopy, onAddToJ
       ) : (
         <div className="mt-3">
           <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('companionToReview')}</h3>
-          <ul data-testid="review-list" dir="rtl" className="mt-2 flex flex-wrap gap-2">
+          <ul data-testid="review-list" className="mt-2 flex flex-wrap justify-start gap-2">
             {result.review.map((item, index) => (
               <li
                 key={index}
@@ -825,7 +825,7 @@ function SessionResultCard({ result, title, copyState = 'idle', onCopy, onAddToJ
                 className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-0.5 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"
               >
                 {item.word
-                  ? <span className="font-arabic text-2xl leading-normal">{item.word}</span>
+                  ? <span dir="rtl" className="font-arabic text-2xl leading-normal">{item.word}</span>
                   : <span dir="ltr" className="py-1 text-xs font-medium">{t('companionWholeAyah', { verseKey: item.verseKey })}</span>}
                 {item.hints > 1 && <span dir="ltr" className="text-xs font-semibold">{item.hints}×</span>}
               </li>
