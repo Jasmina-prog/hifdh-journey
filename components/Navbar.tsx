@@ -85,7 +85,7 @@ function LanguageSwitcher({ current, onChange }: { current: string; onChange: (l
 function BetaBadge() {
   const { t } = useTranslation('common');
   return (
-    <span className="ml-1.5 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px align-middle text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+    <span className="ml-1.5 inline-block rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px align-middle text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
       {t('companionBeta')}
     </span>
   );
@@ -115,7 +115,7 @@ export function Navbar() {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-[#faf7f2]/70 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-950/75">
+    <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-[#faf7f2]/95 backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-950/95">
       <div className="mx-auto flex h-20 max-w-400 items-center justify-between px-4 sm:px-6 lg:px-16">
 
         {/* Logo */}

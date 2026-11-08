@@ -138,18 +138,20 @@ export function GuestBanner({ message, className = '' }: { message: string; clas
   if (isLoading || isAuthenticated) return null;
 
   return (
-    <div className={`flex flex-col gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/80 p-4 backdrop-blur-sm dark:border-amber-700/30 dark:bg-amber-950/20 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${className}`}>
-      <div className="flex items-start gap-3">
-        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
+    <div className={`flex flex-col gap-4 rounded-2xl border border-amber-200/80 bg-linear-to-br from-amber-50 to-[#faf3e0] p-4 shadow-sm dark:border-amber-700/30 dark:from-amber-950/30 dark:to-amber-950/10 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5 ${className}`}>
+      <div className="flex items-center gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/80 text-amber-700 shadow-sm ring-1 ring-amber-300/70 dark:bg-amber-950/50 dark:text-amber-400 dark:ring-amber-700/50">
+          <Lock className="h-6 w-6" aria-hidden />
+        </span>
         <div>
-          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">{t('guestBannerTitle')}</p>
-          <p className="text-sm text-amber-800/90 dark:text-amber-300/80">{message}</p>
+          <p className="text-base font-semibold text-amber-950 dark:text-amber-100">{t('guestBannerTitle')}</p>
+          <p className="mt-0.5 text-sm text-amber-900/80 dark:text-amber-200/80">{message}</p>
         </div>
       </div>
       <button
         type="button"
         onClick={login}
-        className="shrink-0 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
+        className="shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-700/20 transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
         style={{ background: GOLD }}
       >
         {t('startYourHifdh')}

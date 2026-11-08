@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/components/AuthProvider';
 import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
 import { ManualPractice } from './ManualPractice';
+import { Guide } from './Guide';
 import { PickerSelect, type PickerOption } from '@/components/PickerSelect';
 import { SURAH_NAMES } from '@/lib/surahNames';
 import {
@@ -555,6 +556,8 @@ export default function MemorizePage() {
       </div>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('companionIntro')}</p>
 
+      <Guide micSupported={supported} />
+
       {!supported && (
         <p data-testid="no-mic-notice" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
           {t('companionUnsupported')}
@@ -608,12 +611,13 @@ export default function MemorizePage() {
           <button
             key="start"
             type="submit"
-            disabled={phase === 'loading' || manual !== null}
+            disabled={phase === 'loading' || manual !== null || words.length === 0}
             className="h-11 rounded-xl bg-emerald-600 px-6 font-semibold text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:opacity-50 sm:col-span-2 lg:col-span-1"
           >
             {phase === 'loading' ? t('companionLoading') : canStartAgain ? t('companionStartAgain') : t('companionStart')}
           </button>
         )}
+        <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2 lg:col-span-4">{t('companionQariHint')}</p>
       </form>
 
       {manual && (

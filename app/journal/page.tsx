@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState, Suspense } from 'react';
+import i18n from '@/lib/i18n';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -1177,7 +1178,7 @@ function JournalInner() {
 
 export default function JournalPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-400">Loading…</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-400">{i18n.t('loadingSession')}</div>}>
       <JournalInner />
     </Suspense>
   );

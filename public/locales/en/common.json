@@ -1,7 +1,7 @@
 {
   "greeting": "Assalamu Alaikum",
   "saving": "Saving…",
-  "todaysReflection": "Today's Reflection",
+  "todaysReflection": "Today's reflection",
   "duaOfDay": "Dua of the Day",
   "hadith": "Hadith",
   "whereILeftOff": "Where I Left Off",
@@ -80,7 +80,6 @@
   "ofSurahs": "of 114 surahs",
   "surahLabel": "Surah",
   "saveError": "Save failed — run the DB migration first",
-
   "navHome": "Home",
   "navDashboard": "Dashboard",
   "navJournal": "Journal",
@@ -157,7 +156,6 @@
   "companionCopyFailed": "Couldn't copy. Check clipboard permission.",
   "signIn": "Sign in",
   "redirecting": "Redirecting…",
-
   "footerTagline": "A personal tool for Quran memorization, reflection, and daily consistency.",
   "footerSources": "Sources",
   "footerQuranTextLabel": "Quran Text",
@@ -166,14 +164,11 @@
   "footerDisclaimerText1": "This project is a personal tool for Quran memorization and review. It is not an official religious organization, fatwa body, or scholarly institution.",
   "footerDisclaimerText2": "Quran text and translations are displayed for educational purposes only. Please refer to qualified scholars for religious guidance.",
   "footerPages": "Pages",
-
   "verseOfDay": "Verse of the Day",
   "hadithOfDay": "Hadith of the Day",
   "verseLoadError": "Could not load verse — check your connection.",
-
   "studyingJuz": "Studying Juz",
   "autoDetect": "auto-detect",
-
   "basicInfo": "Basic Info",
   "nameLabel": "Name",
   "yourNamePlaceholder": "Your name",
@@ -193,7 +188,6 @@
   "surahsMemorised": "Surahs memorised",
   "journalEntries": "Journal entries",
   "daysOnJourney": "Days on journey",
-
   "privateSpiritual": "Private · Spiritual",
   "myJournal": "My Journal",
   "journalStats": "{{e}} entries · {{v}} vocab · {{m}} milestones",
@@ -245,7 +239,6 @@
   "autoLabel": "auto",
   "milestonePlaceholder": "e.g. Completed Surah Al-Kahf",
   "reflectionPlaceholder": "What's on your heart today?",
-
   "homeHeroTitle1": "Your Quran memorization,",
   "homeHeroTitle2": "tracked with intention.",
   "homeHeroDesc": "A personal dashboard for your Hifdh journey — keep a daily log, visualize your progress across all 114 Surahs, and never lose track of where you are.",
@@ -253,18 +246,15 @@
   "signInWithGoogle": "Sign in with Google",
   "signInToOpenPage": "Sign in to open your {{page}}",
   "thatPage": "that page",
-
   "statSurahsLabel": "Surahs",
   "statSurahsSub": "all tracked visually",
   "statJuzLabel": "Juz",
   "statJuzSub": "one progress ring per Juz",
   "statFridaysLabel": "Fridays",
   "statFridaysSub": "dedicated review days a year",
-
   "fridayResetEvery": "Every Friday",
   "fridayResetTitle": "The Friday Reset",
   "fridayResetText": "Every Friday is for review — no new memorization. Go back to the Surahs you already know, especially the weaker ones. The goal is not speed, it is permanence. One day of consolidation each week keeps the entire Quran alive in your memory.",
-
   "featuresTagline": "Everything you need",
   "featuresTitle": "Built for the long journey.",
   "featMushafMapTitle": "Mushaf Map",
@@ -279,11 +269,9 @@
   "featFridayResetDesc": "Every Friday is for review only. Solidify what you have before moving forward.",
   "featChecklistTitle": "Daily Checklist",
   "featChecklistDesc": "A clean daily checklist keeps the habit simple. Check it off and know you did your part.",
-
   "ctaTagline": "The best time to start",
   "ctaTitle": "was yesterday.",
   "ctaDesc": "The second best time is now. Sign in and begin — your progress, your journal, your Quran map, all in one place.",
-
   "feedbackTitle": "Share your thoughts",
   "feedbackDesc": "Questions, ideas, or anything — we read every one.",
   "feedbackTypeIdea": "Idea",
@@ -302,14 +290,12 @@
   "feedbackSending": "Sending…",
   "feedbackSend": "Send feedback",
   "feedbackLabel": "Feedback",
-
   "heatmapLess": "Less",
   "heatmapMore": "More",
   "heatmapActiveDays_one": "{{count}} active day this year",
   "heatmapActiveDays_other": "{{count}} active days this year",
   "heatmapTooltip_one": "{{date}} · {{count}} surah reviewed",
   "heatmapTooltip_other": "{{date}} · {{count}} surahs reviewed",
-
   "yearAtAGlance": "{{year}} at a glance",
   "goals": "goals",
   "thisMonth": "this month",
@@ -324,19 +310,15 @@
   "goalEmptyFutureHint": "Plan ahead and make it count.",
   "goalPlaceholderFuture": "Plan a goal for {{month}}…",
   "goalPlaceholder": "Add a goal for this month…",
-
   "intentionEmptyMsg": "Set your intention before you begin.",
   "intentionEmptyHint": "Small steps, taken with purpose, change everything.",
-
   "quickNotes": "Quick Notes",
   "noJournalForSurah": "No journal entries for this surah yet.",
   "signInForReflections": "Sign in to see reflections.",
   "viewAll": "View all →",
   "weakLabel": "weak",
-
   "pwaUpdateMsg": "New version available!",
   "pwaUpdateBtn": "Update",
-
   "editorQuran": "Quran",
   "editorHadith": "Hadith",
   "editorHonorifics": "Insert Arabic phrase",
@@ -387,5 +369,23 @@
   "guestBannerDashboard": "This is a preview. Sign in to see your own progress here.",
   "guestBannerJournal": "Sign in to write reflections and save your vocabulary.",
   "startYourHifdh": "Start your Hifdh",
-  "companionBeta": "Beta"
+  "companionBeta": "Beta",
+  "guideTitle": "Guide",
+  "guideIntro": "This page listens while you recite from memory and helps when you stall. Take a minute to read this before you start.",
+  "guideStep1Title": "Pick a surah and ayah",
+  "guideStep1Text": "Choose the surah and the ayah to start from. You can also tap an ayah number.",
+  "guideStep2Title": "Press Start",
+  "guideStep2Text": "Your browser asks for microphone access. Allow it so the page can hear you.",
+  "guideStep3Title": "Recite from memory",
+  "guideStep3Text": "The ayahs stay hidden. Words you recite correctly appear in green.",
+  "guideStep4Title": "If you stall",
+  "guideStep4Text": "After about 3 seconds the next word is played. You can also tap the text to hear the next word sooner.",
+  "guideStep5Title": "See your result",
+  "guideStep5Text": "Press Stop. The ayahs that needed a hint are saved, and you can add them to your Journal.",
+  "guideNoMic": "Your browser can't listen through the microphone. Practice then runs in self-check mode: the ayah stays hidden, and you reveal a word or tap “I recited it”.",
+  "guideGotIt": "Got it, let's start",
+  "guideShow": "Guide",
+  "companionQariHint": "If you stall, the next word is played in this qari's voice.",
+  "weekdayLetters": "M,T,W,T,F,S,S",
+  "guideStartHere": "Start here"
 }

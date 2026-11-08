@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import i18n from '@/lib/i18n';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setAccessToken } from '@/lib/auth';
 import { useAuth } from '@/components/AuthProvider';
@@ -55,7 +56,7 @@ function CallbackContent() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-400">Loading…</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-400">{i18n.t('loadingSession')}</div>}>
       <CallbackContent />
     </Suspense>
   );

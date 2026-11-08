@@ -24,8 +24,8 @@ const amiri = Amiri({
 });
 
 export const metadata: Metadata = {
-  title: 'My Hifdh Journey',
-  description: 'Track your Quran memorization journey with intention, reflection, and progress',
+  title: 'Hifz yo\'lim — Qur\'on yodlash yo\'ldoshi',
+  description: 'Qur\'on yodlashni niyat, mulohaza va aniq progress bilan kuzatib boring: xarita, kundalik, haftalik reja va yoddan o\'qishni tinglovchi yordamchi.',
   manifest: '/manifest.json',
   themeColor: '#1e293b',
   viewport: 'width=device-width, initial-scale=1',
@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${amiri.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="uz" className={`${inter.variable} ${amiri.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full bg-[#faf7f2] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <ThemeProvider>
           <Providers>

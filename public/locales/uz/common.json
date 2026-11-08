@@ -1,7 +1,7 @@
 {
   "greeting": "Assalamu Alaikum",
   "saving": "Saqlanmoqda…",
-  "todaysReflection": "Bugungi fikr",
+  "todaysReflection": "Bugungi mulohaza",
   "duaOfDay": "Kunlik dua",
   "hadith": "Hadis",
   "whereILeftOff": "Qolgan joyim",
@@ -80,7 +80,6 @@
   "ofSurahs": "114 suradan",
   "surahLabel": "Sura",
   "saveError": "Saqlash xatosi — avval DB migratsiyasini bajaring",
-
   "navHome": "Bosh sahifa",
   "navDashboard": "Deshbord",
   "navJournal": "Jurnal",
@@ -157,7 +156,6 @@
   "companionCopyFailed": "Nusxalab bo'lmadi. Ruxsatni tekshiring.",
   "signIn": "Kirish",
   "redirecting": "Yo'naltirilmoqda…",
-
   "footerTagline": "Qur'on yodlash, fikrlash va kunlik izchillik uchun shaxsiy vosita.",
   "footerSources": "Manbalar",
   "footerQuranTextLabel": "Qur'on matni",
@@ -166,14 +164,11 @@
   "footerDisclaimerText1": "Ushbu loyiha Qur'on yodlash va takrorlash uchun shaxsiy vositadir. Bu rasmiy diniy tashkilot yoki ilmiy muassasa emas.",
   "footerDisclaimerText2": "Qur'on matni va tarjimalari faqat ta'lim maqsadida ko'rsatiladi. Diniy maslahat uchun malakali olimlaraga murojaat qiling.",
   "footerPages": "Sahifalar",
-
   "verseOfDay": "Kunlik oyat",
   "hadithOfDay": "Kunlik hadis",
   "verseLoadError": "Oyat yuklanmadi — internetni tekshiring.",
-
   "studyingJuz": "O'rganilayotgan juz",
   "autoDetect": "avto",
-
   "basicInfo": "Asosiy ma'lumot",
   "nameLabel": "Ism",
   "yourNamePlaceholder": "Ismingiz",
@@ -193,7 +188,6 @@
   "surahsMemorised": "Yodlangan suralar",
   "journalEntries": "Jurnal yozuvlari",
   "daysOnJourney": "Safardagi kunlar",
-
   "privateSpiritual": "Shaxsiy · Ma'naviy",
   "myJournal": "Mening jurnalim",
   "journalStats": "{{e}} yozuv · {{v}} so'z · {{m}} yutuq",
@@ -245,7 +239,6 @@
   "autoLabel": "avto",
   "milestonePlaceholder": "mas. Al-Kahf surasini tugatdim",
   "reflectionPlaceholder": "Bugun qalbingizda nima bor?",
-
   "homeHeroTitle1": "Qur'on yodingizda,",
   "homeHeroTitle2": " taraqqiyot qo'lingizda.",
   "homeHeroDesc": "Hifz yo'lingizni yozib boring — kunlik taraqqiyotingiz, 114 sura bo'ylab bosib o'tgan masofa va keyingi qadamingiz doim ko'z oldingizda bo'lsin.",
@@ -253,18 +246,15 @@
   "signInWithGoogle": "Google orqali kirish",
   "signInToOpenPage": "{{page}}ni ochish uchun kiring",
   "thatPage": "u sahifani",
-
   "statSurahsLabel": "Suralar",
   "statSurahsSub": "barchasi vizual kuzatiladi",
   "statJuzLabel": "Juz",
   "statJuzSub": "har bir juz uchun taraqqiyot halqasi",
   "statFridaysLabel": "Jumaliklar",
   "statFridaysSub": "yiliga takrorlash kunlari",
-
   "fridayResetEvery": "Har juma",
   "fridayResetTitle": "Juma Yangilanishi",
   "fridayResetText": "Har juma yaxshi yodlanmagan suralar eslatiladi. Allaqachon bilgan suralaringizga, ayniqsa zaifroqlariga qayting. Maqsad tezlik emas, doimiylikdir. Har haftada bir kun mustahkamlash butun Qur'onni xotirangizda saqlab turadi.",
-
   "featuresTagline": "Kerakli hamma narsa",
   "featuresTitle": "Uzoq safaringiz uchun yaratilgan.",
   "featMushafMapTitle": "Mushaf Xaritasi",
@@ -279,11 +269,9 @@
   "featFridayResetDesc": "Har juma faqat takrorlash uchun. Oldinga davom etishdan oldin nima bilishingizni mustahkamlang.",
   "featChecklistTitle": "Kunlik Ro'yxat",
   "featChecklistDesc": "Toza kunlik ro'yxat odatni sodda saqlaydi. Belgilab qo'ying va o'z qismingizni bajarganingizni biling.",
-
   "ctaTagline": "Boshlash uchun eng yaxshi vaqt",
   "ctaTitle": "kecha edi.",
   "ctaDesc": "Ikkinchi eng yaxshi vaqt hozir. Kiring va boshlang — taraqqiyotingiz, jurnalingiz, Qur'on xaritangiz, hammasi bir joyda.",
-
   "feedbackTitle": "Fikrlaringizni ulashing",
   "feedbackDesc": "Savollar, g'oyalar yoki istalgan narsa — hammasini o'qiymiz.",
   "feedbackTypeIdea": "G'oya",
@@ -302,14 +290,12 @@
   "feedbackSending": "Yuborilmoqda…",
   "feedbackSend": "Fikr yuborish",
   "feedbackLabel": "Fikr-mulohaza",
-
   "heatmapLess": "Kam",
   "heatmapMore": "Ko'p",
   "heatmapActiveDays_one": "{{count}} faol kun bu yil",
   "heatmapActiveDays_other": "{{count}} faol kun bu yil",
   "heatmapTooltip_one": "{{date}} · {{count}} sura takrorlangan",
   "heatmapTooltip_other": "{{date}} · {{count}} sura takrorlangan",
-
   "yearAtAGlance": "{{year}} yil bir qarashda",
   "goals": "maqsad",
   "thisMonth": "bu oy",
@@ -324,19 +310,15 @@
   "goalEmptyFutureHint": "Oldinda rejalashtiring va hisoblaing.",
   "goalPlaceholderFuture": "{{month}} uchun maqsad rejalashtiring…",
   "goalPlaceholder": "Bu oy uchun maqsad qo'shish…",
-
   "intentionEmptyMsg": "Boshlashdan oldin niyatingizni belgilang.",
   "intentionEmptyHint": "Maqsad bilan qo'yilgan kichik qadamlar hammani o'zgartiradi.",
-
   "quickNotes": "Tezkor Eslatmalar",
   "noJournalForSurah": "Bu sura uchun hali jurnal yozuvi yo'q.",
   "signInForReflections": "Fikrlarni ko'rish uchun kiring.",
   "viewAll": "Barchasini ko'rish →",
   "weakLabel": "zaif",
-
   "pwaUpdateMsg": "Yangi versiya mavjud!",
   "pwaUpdateBtn": "Yangilash",
-
   "editorQuran": "Qur'on",
   "editorHadith": "Hadis",
   "editorHonorifics": "Arabcha ibora qo'shish",
@@ -387,5 +369,23 @@
   "guestBannerDashboard": "Bu namuna. O'z progressingizni ko'rish uchun tizimga kiring.",
   "guestBannerJournal": "Mulohaza yozish va lug'atni saqlash uchun tizimga kiring.",
   "startYourHifdh": "Hifzingizni boshlang",
-  "companionBeta": "Beta"
+  "companionBeta": "Beta",
+  "guideTitle": "Qo'llanma",
+  "guideIntro": "Bu sahifa yoddan o'qishingizni tinglaydi va to'xtab qolsangiz yordam beradi. Boshlashdan oldin 1 daqiqa o'qib chiqing.",
+  "guideStep1Title": "Sura va oyatni tanlang",
+  "guideStep1Text": "Qaysi suradan va qaysi oyatdan boshlashni tanlang. Oyat raqamini bossangiz ham bo'ladi.",
+  "guideStep2Title": "“Boshlash”ni bosing",
+  "guideStep2Text": "Brauzer mikrofonga ruxsat so'raydi. Ruxsat bering, shunda sizni eshita oladi.",
+  "guideStep3Title": "Yoddan o'qing",
+  "guideStep3Text": "Oyatlar yashirin bo'ladi. To'g'ri o'qigan so'zlaringiz yashil bo'lib ochiladi.",
+  "guideStep4Title": "To'xtab qolsangiz",
+  "guideStep4Text": "Taxminan 3 soniyadan so'ng keyingi so'z eshittiriladi. Shoshilmasangiz ham bo'ladi, “Keyingi so'z” uchun matnni bosing.",
+  "guideStep5Title": "Natijani ko'ring",
+  "guideStep5Text": "“To'xtatish”ni bosing. Qaysi oyatlarda yordam kerak bo'lgani saqlanadi va uni Mulohazalarga qo'shishingiz mumkin.",
+  "guideNoMic": "Brauzeringiz mikrofonni eshita olmaydi. Shunda mashq o'zingiz baholaydigan rejimda bo'ladi: oyat yashirin, so'zni ochasiz yoki “O'qidim” tugmasini bosasiz.",
+  "guideGotIt": "Tushunarli, boshlayman",
+  "guideShow": "Qo'llanma",
+  "companionQariHint": "To'xtab qolsangiz, shu qori ovozida keyingi so'z eshittiriladi.",
+  "weekdayLetters": "D,S,Ch,P,J,Sh,Y",
+  "guideStartHere": "Avval shuni o'qing"
 }

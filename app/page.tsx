@@ -285,6 +285,7 @@ function RingsPreview() {
 }
 
 function JournalPreview() {
+  const { t } = useTranslation('common');
   const lines = [
     { w: '90%', h: 8, accent: false },
     { w: '75%', h: 8, accent: false },
@@ -294,7 +295,7 @@ function JournalPreview() {
   ];
   return (
     <div className="space-y-2.5 px-2 pt-2">
-      <div className="mb-3 text-xs font-semibold text-slate-400">Today&apos;s reflection</div>
+      <div className="mb-3 text-xs font-semibold text-slate-400">{t('todaysReflection')}</div>
       {lines.map((l, i) => (
         <div key={i} className="flex items-center gap-2">
           <div
@@ -339,7 +340,8 @@ function HeatmapPreview() {
 }
 
 function FridayPreview() {
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const { t } = useTranslation('common');
+  const days = t('weekdayLetters').split(',');
   return (
     <div className="flex gap-1.5 items-end justify-center pt-2">
       {days.map((d, i) => (

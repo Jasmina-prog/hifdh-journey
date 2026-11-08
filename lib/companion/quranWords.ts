@@ -1,7 +1,6 @@
 import type { CompanionWord } from './companion.ts';
 import { hasWaqfMark, normalizeArabic } from './matcher.ts';
 
-const VERSES_URL = 'https://api.quran.com/api/v4/verses/by_chapter';
 const AUDIO_BASE = 'https://audio.qurancdn.com/';
 
 export const RECITERS = [
@@ -16,47 +15,29 @@ export function ayahAudioUrl(reciterId: ReciterId, verseKey: string): string {
   return `${reciter.baseUrl}${surah.padStart(3, '0')}${ayah.padStart(3, '0')}.mp3`;
 }
 
-type ApiWord = {
-  position: number;
-  char_type_name: string;
-  audio_url: string | null;
-  text_uthmani: string;
-  text_imlaei: string;
-};
-type ApiVerse = { verse_key: string; verse_number: number; words: ApiWord[] };
-type ApiResponse = { verses: ApiVerse[]; pagination: { next_page: number | null } };
+// Rows written by scripts/build-quran-data.mjs: [ayah, position, uthmani, imlaei, audio file number].
+type Row = [number, number, string, string, number];
 
+const LOAD_TIMEOUT_MS = 15000;
+
+function wordAudioUrl(surah: number, ayah: number, file: number): string {
+  const pad = (n: number) => String(n).padStart(3, '0');
+  return `${AUDIO_BASE}wbw/${pad(surah)}_${pad(ayah)}_${pad(file)}.mp3`;
+}
+
+/** The text is served from this app's own files, so it loads fast, caches for good and works offline. */
 export async function fetchSurahWords(surah: number): Promise<CompanionWord[]> {
-  const words: CompanionWord[] = [];
-  let page: number | null = 1;
-
-  while (page !== null) {
-    const params = new URLSearchParams({
-      words: 'true',
-      word_fields: 'text_uthmani,text_imlaei',
-      per_page: '50',
-      page: String(page),
-    });
-    const response = await fetch(`${VERSES_URL}/${surah}?${params}`);
-    if (!response.ok) throw new Error(`Quran API returned ${response.status}`);
-    const data = (await response.json()) as ApiResponse;
-
-    for (const verse of data.verses) {
-      for (const word of verse.words) {
-        if (word.char_type_name !== 'word' || !word.audio_url) continue;
-        words.push({
-          verseKey: verse.verse_key,
-          ayah: verse.verse_number,
-          position: word.position,
-          text: word.text_uthmani,
-          // Imlaei spelling is closer than Uthmani script to what recognizers write.
-          normalized: normalizeArabic(word.text_imlaei),
-          audioUrl: AUDIO_BASE + word.audio_url,
-          hasWaqfMark: hasWaqfMark(word.text_uthmani),
-        });
-      }
-    }
-    page = data.pagination.next_page;
-  }
-  return words;
+  const response = await fetch(`/quran/${surah}.json`, { signal: AbortSignal.timeout(LOAD_TIMEOUT_MS) });
+  if (!response.ok) throw new Error(`Quran text returned ${response.status}`);
+  const rows = (await response.json()) as Row[];
+  return rows.map(([ayah, position, text, imlaei, file]) => ({
+    verseKey: `${surah}:${ayah}`,
+    ayah,
+    position,
+    text,
+    // Imlaei spelling is closer than Uthmani script to what recognizers write.
+    normalized: normalizeArabic(imlaei),
+    audioUrl: wordAudioUrl(surah, ayah, file),
+    hasWaqfMark: hasWaqfMark(text),
+  }));
 }

@@ -13,7 +13,7 @@ const resources = {
 if (!i18n.isInitialized) {
   i18n.use(initReactI18next).init({
     resources,
-    lng: 'en',
+    lng: 'uz',
     fallbackLng: 'en',
     ns: ['common'],
     defaultNS: 'common',
