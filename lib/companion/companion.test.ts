@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createCompanion, type CompanionWord } from './companion.ts';
+import { createCompanion as createWithTiming, STUCK_TIMING, type CompanionWord, type StuckTiming } from './companion.ts';
+
+// The logic tests below use these shorter waits so their timestamps stay small.
+// The real waits are covered at the end of the file.
+const TEST_TIMING: StuckTiming = {
+  defaultMs: 3000, minMs: 3000, maxMs: 6000, silentMs: 5000, waqfMs: 8000,
+  afterOpeningMs: 5000, afterHintMs: 5000, maxPaceGapMs: 8000,
+};
+const createCompanion = (words: CompanionWord[], startIndex: number) => createWithTiming(words, startIndex, TEST_TIMING);
 import { hasWaqfMark, normalizeArabic, tokenize } from './matcher.ts';
 import { summarizeSession, weakAyahs } from './sessionResult.ts';
 
@@ -651,4 +659,21 @@ test('weak ayahs are listed most hints first, also for results saved before ayah
   const older = { ...base, review: [{ verseKey: '1:2', word: 'x', hints: 2 }, { verseKey: '1:2', hints: 1 }, { verseKey: '1:1', word: 'y', hints: 1 }] };
   assert.deepEqual(weakAyahs(older), [{ verseKey: '1:2', hints: 3 }, { verseKey: '1:1', hints: 1 }]);
   assert.deepEqual(weakAyahs({ ...base, hints: 0, review: [] }), []);
+});
+
+test('with the real timing, a hint waits 8 seconds of silence, never less', () => {
+  assert.equal(STUCK_TIMING.minMs, 8000);
+  const companion = createWithTiming(IKHLAS, 0);
+  companion.hear({ final: spoken(IKHLAS, 0, 3) }, 1000);
+  assert.equal(companion.tick(8999), null);
+  assert.equal(companion.tick(9000)?.indexes[0], 3);
+});
+
+test('with the real timing, even wrong words wait 8 seconds before a hint', () => {
+  const companion = createWithTiming(IKHLAS, 0);
+  companion.hear({ final: spoken(IKHLAS, 0, 3) }, 1000);
+  companion.hear({ interim: 'ام ام ام' }, 2000);
+  // Humming doesn't restart the wait, so it runs from the last real word.
+  assert.equal(companion.tick(8999), null);
+  assert.ok(companion.tick(9000));
 });

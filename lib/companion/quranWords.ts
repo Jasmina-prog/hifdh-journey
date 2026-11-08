@@ -4,8 +4,8 @@ import { hasWaqfMark, normalizeArabic } from './matcher.ts';
 const AUDIO_BASE = 'https://audio.qurancdn.com/';
 
 export const RECITERS = [
-  { id: 'husary', name: 'Mahmoud Khalil Al-Husary', baseUrl: 'https://mirrors.quranicaudio.com/everyayah/Husary_64kbps/' },
-  { id: 'alafasy', name: 'Mishari Rashid Alafasy', baseUrl: 'https://verses.quran.com/Alafasy/mp3/' },
+  { id: 'husary', name: 'Mahmoud Khalil Al-Husary', baseUrl: 'https://everyayah.com/data/Husary_64kbps/' },
+  { id: 'alafasy', name: 'Mishari Rashid Alafasy', baseUrl: 'https://everyayah.com/data/Alafasy_64kbps/' },
 ] as const;
 export type ReciterId = (typeof RECITERS)[number]['id'];
 

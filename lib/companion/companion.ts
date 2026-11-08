@@ -59,29 +59,50 @@ const MIN_MATCHES_ANYWHERE = 4;
 const MIN_ANYWHERE_LEAD = 1;
 const DISTANCE_PENALTY = 0.1;
 
-const DEFAULT_STUCK_MS = 3000;
-const MIN_STUCK_MS = 3000;
-const MAX_STUCK_MS = 6000;
+/** How long to wait in silence before helping, in ms. */
+export type StuckTiming = {
+  /** The floor when reciting normally: a thinking pause shouldn't count as being stuck. */
+  defaultMs: number;
+  minMs: number;
+  /** Slow reciters get more time, up to this. */
+  maxMs: number;
+  /** Silence may just be a breath, while wrong words mean the user is really searching. */
+  silentMs: number;
+  /** After a waqf sign or an ayah's end, a long silence is normal. */
+  waqfMs: number;
+  /** Before the first recited word, speech may be the basmala or ta'awwudh. */
+  afterOpeningMs: number;
+  /** The mic needs a moment to come back, and the user a moment to begin. */
+  afterHintMs: number;
+  maxPaceGapMs: number;
+};
+
+export const STUCK_TIMING: StuckTiming = {
+  defaultMs: 8000,
+  minMs: 8000,
+  maxMs: 12_000,
+  silentMs: 8000,
+  waqfMs: 10_000,
+  afterOpeningMs: 8000,
+  afterHintMs: 8000,
+  maxPaceGapMs: 12_000,
+};
+
 const PACE_MULTIPLIER = 2.5;
 const PACE_SAMPLES = 12;
 const MIN_PACE_SAMPLES = 3;
-const MAX_PACE_GAP_MS = 8000;
 // Silence may just be a breath, while wrong words mean the user is really searching.
-const SILENT_STUCK_MS = 5000;
 // After a waqf sign or an ayah's end, a long silence is normal.
-const WAQF_STUCK_MS = 8000;
 const NOT_NEEDED_BONUS_MS = 1500;
 const MAX_BONUS_MS = 6000;
 // Before the first recited word, speech may be the basmala or ta'awwudh, not the surah.
-const AFTER_OPENING_STUCK_MS = 5000;
 const NOTHING_SAID_STUCK_MS = 10_000;
 // The mic needs a moment to come back, and the user a moment to begin.
-const AFTER_HINT_STUCK_MS = 5000;
 const BASMALA = ['بسم', 'الله', 'الرحمن', 'الرحيم'];
 
 const MAX_WORD_HINTS = 3;
 
-export function createCompanion(words: CompanionWord[], startIndex: number) {
+export function createCompanion(words: CompanionWord[], startIndex: number, timing: StuckTiming = STUCK_TIMING) {
   const expected = words.map((word) => word.normalized);
 
   let pointer = startIndex;
@@ -128,23 +149,23 @@ export function createCompanion(words: CompanionWord[], startIndex: number) {
   }
 
   function stuckAfterMs(): number {
-    if (!hasEngaged) return (heardOpening ? AFTER_OPENING_STUCK_MS : NOTHING_SAID_STUCK_MS) + patienceBonus;
+    if (!hasEngaged) return (heardOpening ? timing.afterOpeningMs : NOTHING_SAID_STUCK_MS) + patienceBonus;
 
-    let paceMs = DEFAULT_STUCK_MS;
+    let paceMs = timing.defaultMs;
     if (paceGaps.length >= MIN_PACE_SAMPLES) {
       const sorted = [...paceGaps].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)];
-      paceMs = Math.min(MAX_STUCK_MS, Math.max(MIN_STUCK_MS, median * PACE_MULTIPLIER));
+      paceMs = Math.min(timing.maxMs, Math.max(timing.minMs, median * PACE_MULTIPLIER));
     }
 
     let ms: number;
     if (hintOffset > 0) {
       // A hint just played, so this silence is no waqf, but they need time to begin.
-      ms = heardNoise ? paceMs : Math.max(paceMs, AFTER_HINT_STUCK_MS);
+      ms = heardNoise ? paceMs : Math.max(paceMs, timing.afterHintMs);
     } else if (atPausePoint()) {
-      ms = heardNoise ? Math.max(paceMs, SILENT_STUCK_MS) : WAQF_STUCK_MS;
+      ms = heardNoise ? Math.max(paceMs, timing.silentMs) : timing.waqfMs;
     } else {
-      ms = heardNoise ? paceMs : Math.max(paceMs, SILENT_STUCK_MS);
+      ms = heardNoise ? paceMs : Math.max(paceMs, timing.silentMs);
     }
     return ms + patienceBonus;
   }
@@ -184,7 +205,7 @@ export function createCompanion(words: CompanionWord[], startIndex: number) {
     if (to > from) {
       if (lastForwardAt !== null) {
         const gap = (now - lastForwardAt) / (to - from);
-        if (gap < MAX_PACE_GAP_MS) {
+        if (gap < timing.maxPaceGapMs) {
           paceGaps.push(gap);
           if (paceGaps.length > PACE_SAMPLES) paceGaps.shift();
         }

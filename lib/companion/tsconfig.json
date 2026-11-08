@@ -1,0 +1,7 @@
+{
+  // Lets the editor type-check the node:test files, which the app's tsconfig leaves out.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "types": ["node"], "noEmit": true },
+  "include": ["*.ts"],
+  "exclude": []
+}
