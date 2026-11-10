@@ -41,8 +41,9 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: () => void; la
         type="button"
         role="switch"
         aria-checked={on}
+        aria-label={label}
         onClick={onChange}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${
           on ? 'bg-slate-800 dark:bg-slate-200' : 'bg-slate-200 dark:bg-slate-700'
         }`}
       >

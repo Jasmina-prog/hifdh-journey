@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import i18n from '@/lib/i18n';
+import { formatDayMonthYear, formatLongDate, formatShortDate } from '@/lib/dates';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -63,7 +64,7 @@ function formatDate(iso: string, t: (k: string) => string) {
   if (diff <= 0) return t('today');
   if (diff === 1) return t('yesterday');
   if (diff < 7) return `${diff} ${t('daysAgo')}`;
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+  return formatShortDate(d, i18n.language, d.getFullYear() !== today.getFullYear());
 }
 
 function isSameDayPastYear(iso: string): boolean {
@@ -82,7 +83,7 @@ function thisWeekCount(entries: JournalEntry[]): number {
 function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Milestone[]) {
   function esc(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>'); }
   const tagColors: Record<Tag, string> = { tadabbur:'#059669', milestone:'#d97706', struggle:'#e11d48', breakthrough:'#0284c7' };
-  const exportDate = new Date().toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' });
+  const exportDate = formatDayMonthYear(new Date(), i18n.language);
 
   const entryRows = entries.length === 0 ? '<p class="empty">No reflections yet.</p>' : entries.map((e) => `
     <div class="item">
@@ -90,7 +91,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
         <span class="tag" style="color:${tagColors[e.tag]};border-color:${tagColors[e.tag]}">${TAG_LABELS_EN[e.tag]}</span>
         ${e.surahNumber ? `<span class="ref">${surahLabel(e.surahNumber)}${e.ayahNumber ? ` · Ayah ${e.ayahNumber}` : ''}</span>` : ''}
         ${e.pinned ? '<span class="pinned">📌</span>' : ''}
-        <span class="date">${normalizeISO(e.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
+        <span class="date">${formatDayMonthYear(normalizeISO(e.createdAt), i18n.language)}</span>
       </div>
       <div class="content">${sanitizeRichText(e.content)}</div>
     </div>`).join('');
@@ -99,7 +100,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
     <div class="item vocab-item">
       <div class="item-meta">
         ${w.foundIn ? `<span class="ref">${esc(w.foundIn)}</span>` : ''}
-        <span class="date">${normalizeISO(w.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</span>
+        <span class="date">${formatDayMonthYear(normalizeISO(w.createdAt), i18n.language)}</span>
       </div>
       <div class="vocab-row">
         <span class="arabic" dir="rtl">${esc(w.word)}</span>
@@ -113,7 +114,7 @@ function exportPDF(entries: JournalEntry[], vocab: VocabWord[], milestones: Mile
       <span class="milestone-emoji">${m.emoji}</span>
       <div>
         <p class="milestone-text">${esc(m.text)}</p>
-        <p class="date">${normalizeISO(m.createdAt).toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}</p>
+        <p class="date">${formatDayMonthYear(normalizeISO(m.createdAt), i18n.language)}</p>
       </div>
     </div>`).join('');
 
@@ -629,7 +630,7 @@ function MilestoneDetailModal({ milestone, onClose, onDelete }: {
             <div>
               <p className="text-lg font-medium leading-relaxed text-slate-800 dark:text-slate-200">{milestone.text}</p>
               <p className="mt-2 text-sm text-slate-400">
-                {normalizeISO(milestone.createdAt).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {formatLongDate(normalizeISO(milestone.createdAt), i18n.language)}
               </p>
             </div>
           </div>
@@ -961,7 +962,7 @@ function JournalInner() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">{t('latestMilestone')}</p>
                 <p className="text-xs text-slate-400 mb-1.5 leading-relaxed">
-                  {normalizeISO(milestones[0].createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatShortDate(normalizeISO(milestones[0].createdAt), i18n.language, true)}
                 </p>
                 <p className="text-sm font-medium leading-relaxed text-slate-700 dark:text-slate-300 line-clamp-3">{milestones[0].text}</p>
               </div>

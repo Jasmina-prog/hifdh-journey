@@ -364,10 +364,11 @@ function FridayPreview() {
 }
 
 function ChecklistPreview() {
+  const { t } = useTranslation('common');
   const items = [
-    { label: 'Memorization', done: true },
-    { label: 'Reflection', done: true },
-    { label: 'Understanding', done: false },
+    { label: t('previewMemorization'), done: true },
+    { label: t('previewReflection'), done: true },
+    { label: t('previewUnderstanding'), done: false },
   ];
   return (
     <div className="space-y-2.5 px-2 pt-2">

@@ -37,14 +37,11 @@ export function Footer() {
             <img
               src="/logo.png"
               alt="Hifdh Journey"
-              className="h-16 w-auto"
-              style={{ filter: 'brightness(1.1) saturate(1.2)' }}
+              className="h-35 w-auto shrink-0"
+              style={{ filter: 'brightness(1.15) saturate(1.25) contrast(1.05)' }}
             />
             <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
               {t('footerTagline')}
-            </p>
-            <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-              © {new Date().getFullYear()} My Hifdh Journey
             </p>
           </div>
 
@@ -64,7 +61,6 @@ export function Footer() {
                 >
                   Quran.com API
                 </a>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('footerSahihInt')}</p>
               </li>
               <li>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">
@@ -74,7 +70,7 @@ export function Footer() {
                   Sahih al-Bukhari · Sahih Muslim
                 </p>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                  Abu Dawud · Tirmidhi · Ibn Hibban
+                  Abu Dawud · Tirmidhi · Ibn Majah
                 </p>
               </li>
             </ul>
@@ -113,6 +109,13 @@ export function Footer() {
           </div>
 
         </motion.div>
+
+        <div className="mt-12 flex flex-col gap-1 border-t border-slate-200/70 pt-6 text-xs text-slate-500 dark:border-slate-800/70 dark:text-slate-400 sm:flex-row sm:gap-3">
+          <p>© {new Date().getFullYear()} Hifdh Journey</p>
+          <p className="hidden sm:block" aria-hidden="true">·</p>
+          {/* <p>{t('footerMadeBy', { name: 'Jasmina Islomova' })}</p> */}
+          <p>Jasmina Islomova</p>
+        </div>
       </div>
     </footer>
   );

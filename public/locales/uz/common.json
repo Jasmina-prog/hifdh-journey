@@ -51,7 +51,7 @@
   "weeklyGoal": "Haftalik maqsad",
   "profile": "Profil",
   "signOut": "Chiqish",
-  "addIntentionsAbove": "Yuqoriga niyat qo'shing",
+  "addIntentionsAbove": "Rejalar qo'shing",
   "remainingThisWeek": "bu hafta qoldi",
   "currentJuzProgress": "Joriy juz jarayoni",
   "mushafMap": "Mushaf Xaritasi",
@@ -159,7 +159,6 @@
   "footerTagline": "Qur'on yodlash, fikrlash va kunlik izchillik uchun shaxsiy vosita.",
   "footerSources": "Manbalar",
   "footerQuranTextLabel": "Qur'on matni",
-  "footerSahihInt": "Sahih International tarjimasi",
   "footerDisclaimer": "Mas'uliyat cheklovi",
   "footerDisclaimerText1": "Ushbu loyiha Qur'on yodlash va takrorlash uchun shaxsiy vositadir. Bu rasmiy diniy tashkilot yoki ilmiy muassasa emas.",
   "footerDisclaimerText2": "Qur'on matni va tarjimalari faqat ta'lim maqsadida ko'rsatiladi. Diniy maslahat uchun malakali olimlarga murojaat qiling.",
@@ -390,9 +389,12 @@
   "guideStartHere": "Avval shuni o'qing",
   "guideDisclaimerTitle": "Muhim eslatma: bu inson emas, yordamchi vosita",
   "guideDisclaimerText": "Bu sahifa faqat keyingi so'z yoki oyatni eslashingizga yordam beradigan oddiy vosita. U haqiqiy ustoz yoki qori emas va 100% aniq ishlamaydi. Xatolar bo'lishi mumkin: ovozni noto'g'ri tushunishi, to'g'ri o'qiganingizni sezmay qolishi yoki kerak bo'lmaganda yordam berishi mumkin. U tajvid va talaffuzni tekshira olmaydi. Yodlaganingizni albatta tajribali ustoz yoki qori oldida tekshirib turing.",
-  "loadingVerse": "Oyat yuklanmoqda…",
   "companionPrivacy": "Maxfiylik: ovozingiz brauzeringizning nutqni tanish xizmatiga yuboriladi (Chrome va Edge'da bu Google yoki Microsoft serverlari, ya'ni qurilmangizda emas). Ilovamiz ovozni o'z serverida saqlamaydi.",
   "firstStepTitle": "Yodlagan suralaringizni belgilang",
   "firstStepText": "Hozircha hammasi nolda. Xaritada allaqachon yodlagan suralaringizni belgilang, shunda taraqqiyot va tavsiyalar paydo bo'ladi.",
-  "firstStepButton": "Xaritani ochish"
+  "firstStepButton": "Xaritani ochish",
+  "previewMemorization": "Yodlash",
+  "previewReflection": "Mulohaza",
+  "previewUnderstanding": "Tushunish",
+  "footerMadeBy": "{{name}} tomonidan yaratilgan"
 }

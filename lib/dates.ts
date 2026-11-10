@@ -82,3 +82,25 @@ export function formatHijriDate(date: Date, locale: string): string {
     return '';
   }
 }
+
+/** "28-okt" / "28 окт." / "Oct 28", with the year added when asked for: "28-okt, 2025". */
+export function formatShortDate(date: Date, locale: string, withYear = false): string {
+  const lang = langOf(locale);
+  const day = date.getDate();
+  const month = MONTHS_SHORT[lang][date.getMonth()];
+  const year = date.getFullYear();
+  if (lang === 'uz') return withYear ? `${day}-${month.toLowerCase()}, ${year}` : `${day}-${month.toLowerCase()}`;
+  if (lang === 'ru') return withYear ? `${day} ${month}. ${year}` : `${day} ${month}.`;
+  return withYear ? `${month} ${day}, ${year}` : `${month} ${day}`;
+}
+
+/** "28-oktyabr, 2026" / "28 октября 2026 г." / "October 28, 2026". */
+export function formatDayMonthYear(date: Date, locale: string): string {
+  const lang = langOf(locale);
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  if (lang === 'uz') return `${day}-${MONTHS_LONG.uz[month].toLowerCase()}, ${year}`;
+  if (lang === 'ru') return `${day} ${RU_MONTHS_GENITIVE[month]} ${year} г.`;
+  return `${MONTHS_LONG.en[month]} ${day}, ${year}`;
+}

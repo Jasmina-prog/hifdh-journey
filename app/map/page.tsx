@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
 import { FirstStepCard } from '@/components/FirstStepCard';
+import i18n from '@/lib/i18n';
+import { formatShortDate } from '@/lib/dates';
 import { useSurahProgress, useUpsertSurahProgress } from '@/lib/queries/surahProgress';
 import { useJournalEntries } from '@/lib/queries/journalEntries';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
@@ -770,7 +772,7 @@ function SidePanel({
               className="block rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 transition hover:border-slate-200 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700">
               <p className="line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{contentToPlainText(r.content)}</p>
               <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-600">
-                {r.createdAt ? new Date(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(r.createdAt) ? r.createdAt : r.createdAt + 'Z').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                {r.createdAt ? formatShortDate(new Date(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(r.createdAt) ? r.createdAt : r.createdAt + 'Z'), i18n.language, true) : ''}
                 <span className="ml-1.5 capitalize opacity-70">· {r.tag}</span>
               </p>
             </Link>
