@@ -555,6 +555,7 @@ export default function MemorizePage() {
         </span>
       </div>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('companionIntro')}</p>
+      <p data-testid="privacy-note" className="mt-1 max-w-3xl text-xs text-slate-500 dark:text-slate-400">{t('companionPrivacy')}</p>
 
       <Guide micSupported={supported} />
 

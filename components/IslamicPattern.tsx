@@ -21,7 +21,7 @@ export function IslamicPattern() {
         >
           <motion.img
             src="/patterns/eghra-gold.svg"
-            alt=""
+            alt="" aria-hidden="true"
             animate={{ rotate: 360 }}
             transition={{ duration: 170, repeat: Infinity, ease: 'linear' }}
             style={{ width: '100%', height: '100%' }}
@@ -42,7 +42,7 @@ export function IslamicPattern() {
         >
           <motion.img
             src="/patterns/eghra2.svg"
-            alt=""
+            alt="" aria-hidden="true"
             animate={{ rotate: -360 }}
             transition={{ duration: 110, repeat: Infinity, ease: 'linear' }}
             style={{ width: '100%', height: '100%' }}

@@ -133,7 +133,7 @@ export function PickerSelect({
                   aria-controls={listId}
                   aria-activedescendant={activeDescendant}
                   placeholder={searchPlaceholder}
-                  className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                  className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400"
                 />
               </div>
             )}

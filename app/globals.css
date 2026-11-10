@@ -174,6 +174,6 @@
 .journal-prose aside[data-type="hadith"][data-source=""]::after { content: none; }
 
 .journal-prose p.is-editor-empty:first-child::before {
-  @apply pointer-events-none float-left h-0 text-slate-300 dark:text-slate-600;
+  @apply pointer-events-none float-left h-0 text-slate-500 dark:text-slate-400;
   content: attr(data-placeholder);
 }

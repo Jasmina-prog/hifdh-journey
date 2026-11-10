@@ -119,7 +119,7 @@ export function Navbar() {
       <div className="mx-auto flex h-20 max-w-400 items-center justify-between px-4 sm:px-6 lg:px-16">
 
         {/* Logo */}
-        <Link href="/" className="shrink-0 flex items-center gap-1 transition hover:opacity-80">
+        <Link href="/" aria-label={t('navHome')} className="shrink-0 flex items-center gap-1 transition hover:opacity-80">
           <img
             src="/logo.png"
             alt="Hifdh Journey"
@@ -151,7 +151,7 @@ export function Navbar() {
           <LanguageSwitcher current={i18n.language} onChange={changeLanguage} />
 
           {user ? (
-            <Link href="/profile"
+            <Link href="/profile" aria-label={t('profile')}
               className={`ml-1 rounded-lg p-2 transition ${
                 isActive('/profile')
                   ? 'text-slate-900 underline decoration-2 underline-offset-4 dark:text-slate-100'
@@ -182,7 +182,7 @@ export function Navbar() {
           <IslamicThemeToggle theme={theme} onToggle={toggleTheme} />
 
           {user ? (
-            <Link href="/profile"
+            <Link href="/profile" aria-label={t('profile')}
               className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">

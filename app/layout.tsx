@@ -23,7 +23,13 @@ const amiri = Amiri({
   variable: '--font-display',
 });
 
+const TITLE = 'Hifz yo\'lim — Qur\'on yodlash yo\'ldoshi';
+const DESCRIPTION = 'Qur\'on yodlashni niyat, mulohaza va aniq progress bilan kuzatib boring: xarita, kundalik, haftalik reja va yoddan o\'qishni tinglovchi yordamchi.';
+
 export const metadata: Metadata = {
+  metadataBase: new URL('https://hifz.uz'),
+  openGraph: { type: 'website', siteName: 'Hifz yo\'lim', locale: 'uz_UZ', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
   title: 'Hifz yo\'lim — Qur\'on yodlash yo\'ldoshi',
   description: 'Qur\'on yodlashni niyat, mulohaza va aniq progress bilan kuzatib boring: xarita, kundalik, haftalik reja va yoddan o\'qishni tinglovchi yordamchi.',
   manifest: '/manifest.json',

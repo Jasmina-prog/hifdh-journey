@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
 import { GuestBanner, useSignInPrompt } from '@/components/SignInPrompt';
+import { FirstStepCard } from '@/components/FirstStepCard';
 import { useSurahProgress, useUpsertSurahProgress } from '@/lib/queries/surahProgress';
 import { useJournalEntries } from '@/lib/queries/journalEntries';
 import { SURAH_TO_JUZ, JUZ_TO_SURAHS } from '@/lib/juzData';
@@ -356,6 +357,7 @@ export default function MapPage() {
       <div className="mx-auto w-full max-w-400 px-4 py-8 sm:px-6 lg:px-16 lg:py-12">
 
         <GuestBanner message={t('guestBannerMap')} className="mb-6" />
+        {user && progressData && ![...progress.values()].some((p) => p.status !== 'not_started') && <FirstStepCard className="mb-6" />}
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
@@ -678,7 +680,7 @@ function SidePanel({
         onChange={(e) => onNotesChange(e.target.value)}
         placeholder={t('notesPlaceholder')}
         rows={3}
-        className="w-full resize-none bg-transparent text-sm leading-relaxed text-slate-700 outline-none placeholder:text-slate-300 dark:text-slate-300 dark:placeholder:text-slate-700"
+        className="w-full resize-none bg-transparent text-sm leading-relaxed text-slate-700 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 dark:text-slate-300 dark:placeholder:text-slate-700"
       />
 
       <hr className="my-4 border-slate-100 dark:border-slate-800" />

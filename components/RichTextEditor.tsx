@@ -128,7 +128,7 @@ function MenuItem({ onClick, active, children }: { onClick: () => void; active?:
   );
 }
 
-const inputClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const inputClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 const primaryButtonClass = 'rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-40';
 
 // ─── Insert forms ─────────────────────────────────────────────────────────────

@@ -4,9 +4,11 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { getDailyDua } from '@/lib/duas';
+import { langOf } from '@/lib/dates';
 
 export function DuaCard() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const lang = langOf(i18n.language);
   const dua = useMemo(() => getDailyDua(new Date()), []);
 
   return (
@@ -24,8 +26,8 @@ export function DuaCard() {
         {dua.arabic}
       </p>
       <p className="mt-4 text-base italic text-slate-500 dark:text-slate-400 leading-relaxed">{dua.transliteration}</p>
-      <p className="mt-4 flex-1 text-lg leading-9 text-slate-700 dark:text-slate-300">{dua.translation}</p>
-      <p className="mt-5 text-xs font-medium text-emerald-600 dark:text-emerald-500">— {dua.source}</p>
+      <p className="mt-4 flex-1 text-lg leading-9 text-slate-700 dark:text-slate-300">{dua.translation[lang]}</p>
+      <p className="mt-5 text-xs font-medium text-emerald-600 dark:text-emerald-500">— {dua.source[lang]}</p>
     </motion.div>
   );
 }

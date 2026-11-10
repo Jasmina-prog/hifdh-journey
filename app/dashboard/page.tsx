@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/AuthProvider';
 import { GuestBanner } from '@/components/SignInPrompt';
+import { FirstStepCard } from '@/components/FirstStepCard';
 import { useSurahProgress } from '@/lib/queries/surahProgress';
 import { ProgressRing } from '@/components/ProgressRing';
 import { DuaCard } from '@/components/DuaCard';
@@ -218,6 +219,7 @@ export default function DashboardPage() {
         <div className="space-y-12">
 
           <GuestBanner message={t('guestBannerDashboard')} />
+          {user && progressData && !progressRows.some((row) => row.status !== 'not_started') && <FirstStepCard />}
 
           {/* ── 1. Greeting ──────────────────────────────────────────────── */}
           <motion.section

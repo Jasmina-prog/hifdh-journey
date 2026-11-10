@@ -85,7 +85,7 @@ function Field({
   multiline?: boolean;
 }) {
   const shared =
-    'w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none text-base';
+    'w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-none text-base';
   return (
     <div className="group flex flex-col gap-1.5 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 transition-colors focus-within:border-emerald-400 dark:border-slate-800 dark:bg-slate-900/80 dark:focus-within:border-emerald-600">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">

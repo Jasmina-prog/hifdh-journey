@@ -294,7 +294,7 @@ function SurahSelect({ value, onChange }: { value: string; onChange: (v: string)
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('searchSurah')}
-                className="w-full rounded-lg bg-slate-50 px-3 py-1.5 text-sm outline-none placeholder:text-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="w-full rounded-lg bg-slate-50 px-3 py-1.5 text-sm outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 dark:bg-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="max-h-52 overflow-y-auto py-1">
@@ -469,11 +469,11 @@ function EntryDetailModal({ entry, onClose, onPin, onDelete, onEdit }: {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <input list="surah-edit-detail" value={editSurah} onChange={(e) => setEditSurah(e.target.value)} placeholder={t('surahOptional')}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                   <datalist id="surah-edit-detail">{SURAH_NAMES.map((name, i) => <option key={i} value={name} />)}</datalist>
                 </div>
                 <input type="number" min={1} value={editAyah} onChange={(e) => setEditAyah(e.target.value)} placeholder={t('ayahNum')}
-                  className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+                  className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
               </div>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(TAG_CONFIG) as Tag[]).map((tag) => (
@@ -684,7 +684,7 @@ function WriteModal({ onSave, onClose }: {
         <div className="mb-3 flex gap-2">
           <SurahSelect value={surahInput} onChange={setSurahInput} />
           <input type="number" min={1} value={ayahInput} onChange={(e) => setAyahInput(e.target.value)} placeholder={t('ayahNum')}
-            className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+            className="w-24 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
         </div>
         <div className="mb-3 flex flex-wrap gap-2">
           {(Object.keys(TAG_CONFIG) as Tag[]).map((tagKey) => (
@@ -1021,7 +1021,7 @@ function JournalInner() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                     <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('searchEntries')}
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-300 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                   </div>
 
                   <div className="mb-3 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
@@ -1070,13 +1070,13 @@ function JournalInner() {
 
               <div onFocusCapture={() => requireSignIn('journal')} className="mb-4 rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 space-y-2">
                 <input value={vocabWord} onChange={(e) => setVocabWord(e.target.value)} placeholder={t('arabicWord')} dir="rtl"
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right font-arabic text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right font-arabic text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                 <input value={vocabRoot} onChange={(e) => setVocabRoot(e.target.value)} placeholder={t('rootLetters')}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                 <input value={vocabMeaning} onChange={(e) => setVocabMeaning(e.target.value)} placeholder={t('meaningRequired')}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                 <input value={vocabFoundIn} onChange={(e) => setVocabFoundIn(e.target.value)} placeholder={t('foundInPlaceholder')}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                 <div className="flex justify-end pt-0.5">
                   <button onClick={handleAddVocab} disabled={!vocabWord.trim() || !vocabMeaning.trim() || savingVocab}
                     className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30 dark:bg-slate-100 dark:text-slate-950">
@@ -1118,7 +1118,7 @@ function JournalInner() {
                   <input value={milestoneText} onChange={(e) => setMilestoneText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddMilestone(); }}
                     placeholder={t('milestonePlaceholder')}
-                    className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-300 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600" />
+                    className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
                 </div>
                 <div className="flex justify-end">
                   <button onClick={handleAddMilestone} disabled={!milestoneText.trim() || savingMilestone}
