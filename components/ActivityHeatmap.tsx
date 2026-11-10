@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
+import { localDateKey, monthShort, weekdayShort } from '@/lib/dates';
 
 type ProgressRow = {
   lastReviewed: string | null;
@@ -15,46 +16,51 @@ const LEVEL_CLASSES: Record<0 | 1 | 2 | 3 | 4, string> = {
 };
 
 function getLevel(count: number, isFuture: boolean): 0 | 1 | 2 | 3 | 4 {
-  if (isFuture || count === 0) return 0;
-  if (count === 1) return 1;
-  if (count === 2) return 2;
-  if (count >= 3) return 4;
-  return 3;
+  if (isFuture || count <= 0) return 0;
+  return Math.min(count, 4) as 1 | 2 | 3 | 4;
 }
 
-// Jan 1 2024 is Monday — use it as a stable reference for weekday formatting
-const WEEKDAY_REF = new Date(2024, 0, 1); // Mon
-const WEEKDAY_OFFSETS = [null, 0, null, 2, null, 4, null]; // rows 1,3,5 → Mon,Wed,Fri
+const WEEKS = 53;
+// Rows are Sunday first, like GitHub's. Only Monday, Wednesday and Friday are labelled.
+const LABELLED_WEEKDAYS: (number | null)[] = [null, 1, null, 3, null, 5, null];
 
-export function ActivityHeatmap({ progressRows = [] }: { progressRows?: ProgressRow[] }) {
+/**
+ * A year of activity, one square per day. A day counts every surah reviewed that day plus
+ * anything else in `activity` (journal entries, memorization sessions), given as ISO
+ * strings or millisecond timestamps. Days are the user's own calendar days, not UTC.
+ */
+export function ActivityHeatmap({ progressRows = [], activity = [] }: {
+  progressRows?: ProgressRow[];
+  activity?: (string | number)[];
+}) {
   const { t, i18n } = useTranslation('common');
   const locale = i18n.language;
 
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateKey(today);
 
-  // Count surahs reviewed per day
   const activityMap = new Map<string, number>();
-  for (const row of progressRows) {
-    if (row.lastReviewed) {
-      const date = row.lastReviewed.slice(0, 10);
-      activityMap.set(date, (activityMap.get(date) ?? 0) + 1);
-    }
+  function count(when: string | number | null) {
+    if (when == null) return;
+    const date = new Date(when);
+    if (Number.isNaN(date.getTime())) return;
+    const key = localDateKey(date);
+    activityMap.set(key, (activityMap.get(key) ?? 0) + 1);
   }
+  for (const row of progressRows) count(row.lastReviewed);
+  for (const when of activity) count(when);
 
-  // Start from Sunday of the week 52 weeks ago → 53 columns total
-  const WEEKS = 53;
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - startDate.getDay() - 51 * 7);
+  // The last column is the current week, so it starts 52 Sundays after the first column.
+  const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - (WEEKS - 1) * 7);
 
-  // cells[dayOfWeek][weekIndex]
+  // grid[dayOfWeek][weekIndex]
   const grid: { date: string; level: 0 | 1 | 2 | 3 | 4 }[][] = Array.from({ length: 7 }, () => []);
   const monthLabels: { month: number; col: number }[] = [];
 
   const cursor = new Date(startDate);
   for (let w = 0; w < WEEKS; w++) {
     for (let d = 0; d < 7; d++) {
-      const key = cursor.toISOString().slice(0, 10);
+      const key = localDateKey(cursor);
       if (d === 0 && cursor.getDate() <= 7) {
         monthLabels.push({ month: cursor.getMonth(), col: w });
       }
@@ -65,9 +71,6 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
 
   const thisYear = today.getFullYear().toString();
   const totalDone = Array.from(activityMap.keys()).filter((d) => d.startsWith(thisYear)).length;
-
-  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short' });
-  const weekdayFmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
 
   return (
     <div className="w-full">
@@ -81,7 +84,7 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
           const label = monthLabels.find((m) => m.col === i);
           return (
             <span key={i}>
-              {label ? monthFmt.format(new Date(2024, label.month, 1)) : ''}
+              {label ? monthShort(label.month, locale) : ''}
             </span>
           );
         })}
@@ -91,15 +94,13 @@ export function ActivityHeatmap({ progressRows = [] }: { progressRows?: Progress
       <div className="flex gap-1.5">
         {/* Weekday labels */}
         <div className="flex w-7 shrink-0 flex-col" style={{ gap: 3 }}>
-          {WEEKDAY_OFFSETS.map((offset, i) => (
+          {LABELLED_WEEKDAYS.map((day, i) => (
             <div
               key={i}
               className="flex items-center text-[9px] leading-none text-slate-400 dark:text-slate-500"
               style={{ height: 0, flexGrow: 1 }}
             >
-              {offset !== null
-                ? weekdayFmt.format(new Date(WEEKDAY_REF.getTime() + offset * 86400000))
-                : ''}
+              {day !== null ? weekdayShort(day, locale) : ''}
             </div>
           ))}
         </div>

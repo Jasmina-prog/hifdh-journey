@@ -43,7 +43,7 @@
   "complete": "complete",
   "estimated": "estimated",
   "activityHeatmap": "Activity heatmap",
-  "heatmapDesc": "Darker tiles mean more completed tasks that day.",
+  "heatmapDesc": "Counts surah reviews, journal entries and memorization sessions.",
   "goToMap": "Go to Mushaf Map",
   "sabaq": "Sabaq",
   "sabqi": "Sabqi",
@@ -294,8 +294,8 @@
   "heatmapMore": "More",
   "heatmapActiveDays_one": "{{count}} active day this year",
   "heatmapActiveDays_other": "{{count}} active days this year",
-  "heatmapTooltip_one": "{{date}} · {{count}} surah reviewed",
-  "heatmapTooltip_other": "{{date}} · {{count}} surahs reviewed",
+  "heatmapTooltip_one": "{{date}} · {{count}} activities",
+  "heatmapTooltip_other": "{{date}} · {{count}} activities",
   "yearAtAGlance": "{{year}} at a glance",
   "goals": "goals",
   "thisMonth": "this month",
@@ -387,5 +387,7 @@
   "guideShow": "Guide",
   "companionQariHint": "If you stall, the next word is played in this qari's voice.",
   "weekdayLetters": "M,T,W,T,F,S,S",
-  "guideStartHere": "Start here"
+  "guideStartHere": "Start here",
+  "guideDisclaimerTitle": "Important: this is a helper tool, not a person",
+  "guideDisclaimerText": "This page is just a simple tool that helps you recall the next word or ayah. It is not a real teacher or qari, and it does not work 100% accurately. There can be flaws: it may mishear a word, miss that you recited correctly, or give a hint you didn't need. It cannot check tajweed or pronunciation. Always have your memorization checked by a qualified teacher or qari."
 }

@@ -43,7 +43,7 @@
   "complete": "bajarildi",
   "estimated": "taxminan",
   "activityHeatmap": "Faollik diagrammasi",
-  "heatmapDesc": "To'qroq katakchalar o'sha kunda ko'proq bajarilgan vazifalarni bildiradi.",
+  "heatmapDesc": "Sura takrorlash, mulohaza yozish va yoddan o'qish mashqlari hisoblanadi.",
   "goToMap": "Mushaf xaritasiga o'tish",
   "sabaq": "Sabaq",
   "sabqi": "Sabqi",
@@ -294,8 +294,8 @@
   "heatmapMore": "Ko'p",
   "heatmapActiveDays_one": "{{count}} faol kun bu yil",
   "heatmapActiveDays_other": "{{count}} faol kun bu yil",
-  "heatmapTooltip_one": "{{date}} · {{count}} sura takrorlangan",
-  "heatmapTooltip_other": "{{date}} · {{count}} sura takrorlangan",
+  "heatmapTooltip_one": "{{date}} · {{count}} ta faollik",
+  "heatmapTooltip_other": "{{date}} · {{count}} ta faollik",
   "yearAtAGlance": "{{year}} yil bir qarashda",
   "goals": "maqsad",
   "thisMonth": "bu oy",
@@ -387,5 +387,7 @@
   "guideShow": "Qo'llanma",
   "companionQariHint": "To'xtab qolsangiz, shu qori ovozida keyingi so'z eshittiriladi.",
   "weekdayLetters": "D,S,Ch,P,J,Sh,Y",
-  "guideStartHere": "Avval shuni o'qing"
+  "guideStartHere": "Avval shuni o'qing",
+  "guideDisclaimerTitle": "Muhim eslatma: bu inson emas, yordamchi vosita",
+  "guideDisclaimerText": "Bu sahifa faqat keyingi so'z yoki oyatni eslashingizga yordam beradigan oddiy vosita. U haqiqiy ustoz yoki qori emas va 100% aniq ishlamaydi. Xatolar bo'lishi mumkin: ovozni noto'g'ri tushunishi, to'g'ri o'qiganingizni sezmay qolishi yoki kerak bo'lmaganda yordam berishi mumkin. U tajvid va talaffuzni tekshira olmaydi. Yodlaganingizni albatta tajribali ustoz yoki qori oldida tekshirib turing."
 }

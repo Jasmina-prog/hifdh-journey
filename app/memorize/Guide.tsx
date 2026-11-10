@@ -98,6 +98,20 @@ export function Guide({ micSupported }: { micSupported: boolean }) {
               <p className="mt-2 max-w-2xl text-sm text-amber-50 sm:text-base">{t('guideIntro')}</p>
             </div>
 
+            <div
+              role="note"
+              data-testid="guide-disclaimer"
+              className="mx-6 mt-6 flex gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-100 sm:mx-10"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden>
+                <path fillRule="evenodd" d="M8.49 2.6a1.7 1.7 0 0 1 3.02 0l6.1 11.6A1.7 1.7 0 0 1 16.1 16.7H3.9a1.7 1.7 0 0 1-1.5-2.5L8.49 2.6ZM10 7a.9.9 0 0 0-.9.9v3a.9.9 0 1 0 1.8 0v-3A.9.9 0 0 0 10 7Zm0 7.2a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className="font-semibold">{t('guideDisclaimerTitle')}</p>
+                <p className="mt-1 text-sm leading-relaxed text-amber-900 dark:text-amber-200/90">{t('guideDisclaimerText')}</p>
+              </div>
+            </div>
+
             <ol className="grid gap-3 px-6 py-6 sm:grid-cols-2 sm:px-10">
               {STEPS.map((step) => (
                 <li

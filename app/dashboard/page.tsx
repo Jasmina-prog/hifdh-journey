@@ -15,25 +15,12 @@ import { LastSessionCard } from '@/components/LastSessionCard';
 import { WeeklyIntentionCard } from '@/components/WeeklyIntentionCard';
 import { MonthlyTasks } from '@/components/MonthlyTasks';
 import { ActivityHeatmap } from '@/components/ActivityHeatmap';
+import { formatHijriDate, formatLongDate, localDateKey } from '@/lib/dates';
+import { useJournalEntries } from '@/lib/queries/journalEntries';
+import { loadResults } from '@/lib/companion/webResultStore';
 import { JUZ_TO_SURAHS, SURAH_TO_JUZ } from '@/lib/juzData';
 
-function getDateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function formatGregorian(d: Date) {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  }).format(d);
-}
-
-function formatHijri(d: Date) {
-  try {
-    return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    }).format(d);
-  } catch { return ''; }
-}
+const getDateKey = localDateKey;
 
 // Reusable section heading
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -107,7 +94,8 @@ function mergeWithMapCache(uid: string, rows: ProgressRow[]): ProgressRow[] {
 
 export default function DashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const formatGregorian = (d: Date) => formatLongDate(d, i18n.language);
   const [userName, setUserName] = useState(() => {
     try { return localStorage.getItem('hifdh-last-user-name') ?? ''; } catch { return ''; }
   });
@@ -123,6 +111,18 @@ export default function DashboardPage() {
   const todayKey = getDateKey(today);
 
   const { data: progressData } = useSurahProgress({}, !!user);
+  const { data: journalData } = useJournalEntries({}, !!user);
+  // Memorization results live in this browser, which the server can't read while rendering.
+  const [memorizeTimes, setMemorizeTimes] = useState<number[]>([]);
+  useEffect(() => {
+    if (authLoading) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMemorizeTimes(Object.values(loadResults(user?.id ?? null)).map((result) => result.savedAt));
+  }, [user?.id, authLoading]);
+  const heatmapActivity = useMemo(
+    () => [...(journalData?.data ?? []).map((entry) => entry.createdAt), ...memorizeTimes],
+    [journalData, memorizeTimes],
+  );
 
   useEffect(() => {
     // Restore manual juz selection from localStorage
@@ -202,7 +202,7 @@ export default function DashboardPage() {
     try { localStorage.removeItem('hifdh-target-juz'); } catch {}
   }
 
-  const dateString = showHijri ? formatHijri(today) : formatGregorian(today);
+  const dateString = showHijri ? formatHijriDate(today, i18n.language) : formatGregorian(today);
 
   if (authLoading) {
     return (
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             <p className="text-base font-medium text-slate-400 dark:text-slate-500">
               {t('greeting')}{userName ? `, ${userName}` : ''}
             </p>
-            <h1 className="mt-2 text-5xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-6xl">
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">
               {dateString || formatGregorian(today)}
             </h1>
             <div className="mt-2">
@@ -287,7 +287,7 @@ export default function DashboardPage() {
                   {new Date().getFullYear()} {t('atAGlance')}
                 </p>
               </div>
-              <ActivityHeatmap progressRows={progressRows} />
+              <ActivityHeatmap progressRows={progressRows} activity={heatmapActivity} />
             </div>
           </motion.section>
 

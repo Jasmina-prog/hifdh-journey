@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useMonthlyTasksYear, useCreateMonthlyTask, useUpdateMonthlyTask, useDeleteMonthlyTask } from '@/lib/queries/monthlyTasks';
 import { useSignInPrompt } from '@/components/SignInPrompt';
 import type { MonthlyTask } from '@/lib/types';
+import { monthLong, monthShort } from '@/lib/dates';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,10 +15,10 @@ type Task = MonthlyTask;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function monthAbbr(idx: number, locale: string) {
-  return new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(2024, idx, 1));
+  return monthShort(idx, locale);
 }
 function monthFull(idx: number, locale: string) {
-  return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2024, idx, 1));
+  return monthLong(idx, locale);
 }
 
 function currentYear()    { return new Date().getFullYear(); }
